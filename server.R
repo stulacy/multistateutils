@@ -139,6 +139,7 @@ shinyServer(function(input, output, session) {
         for (a in names(df)) {
             # Create dummy variables for categorical
             if (attrs_list[[a]]$type == 'Categorical') {
+                # TODO Remove reference level
                 # Create dummary variables
                 for (l in attrs_list[[a]]$levels) {
                     newdf[[paste(a, l, sep='.')]] <- 0
@@ -1152,5 +1153,185 @@ shinyServer(function(input, output, session) {
         return(plot_grid(plotlist=plots, labels=labels))
     })
     
+    
+    ############################### Simulation ##########################################################################
+    
+    curr_time_reactive <- reactiveValues(curr_time=0, next_time=0)
+    
+    create_event <- function(id, time, attributes) {
+        obj <- list(history=data.frame(state=NULL, entry_time=NULL),
+                    curr_state = -1,
+                    next_state = 1,
+                    id = id,
+                    time = time,
+                    attributes = attributes,
+                    next_transition = NULL # These get filled out later on
+                    )
+        class(obj) <- c(class(obj), 'event')
+        obj
+    }
+    
+    # TODO Have these chosen by user
+    ENTRY_RATE <- 0.1
+    SIM_TIME <- 1000
+    ERROR_MARGIN <- 1.25
+    
+    output$timedisplay <- renderUI({
+        item_list <- list()
+        item_list[[1]] <- h5(paste("Current time:", curr_time_reactive$curr_time))
+        item_list[[2]] <- h5(paste("Next event time:", curr_time_reactive$next_time))
+        do.call(tagList, item_list)
+    })
+    
+    # TODO See if force is required here
+    create_next_transition <- function(starting_state, attrs) {
+        force(starting_state)
+        force(attrs)
+        
+        # Subset transitions where have specific starting state and draw method
+        trans <- reactiveValuesToList(transitions)
+        trans <- trans[sapply(trans, function(t) t$from == starting_state && !is.null(t$draw))]  
+        force(trans)
+        
+        function() {
+            if (length(trans) == 0)
+                return(NULL)
+            
+            times <- sapply(trans, function(t) t$draw(1, newdata=attrs))
+            # Obtain next event as next time
+            next_time <- which.min(times)
+            # Return the next state and its time
+            c(times[next_time], trans[[next_time]]$to)
+        }
+        
+    }
+    
+    # Function that runs when an event occurs. Creates the subsequent event and returns it
+    process_event <- function(event) {
+        # Create new event as copy of old
+        new_event <- event
+        # update current state
+        new_event$curr_state <- event$next_state
+        # Update history
+        new_event$history <- rbind(new_event$history, c(event$next_state, event$time))
+        # determine next state and time
+        next_trans <- event$next_transition()
+        
+        # If in an absorbant state, return state as it is
+        if (is.null(next_trans)) {
+            return(new_event)
+        }
+        
+        # update next state and time (time will be current time + time to next event)
+        new_event$time <- next_trans[1] + event$time
+        new_event$next_state <- next_trans[2]
+        # set next_transition 
+        new_event$next_transition <- create_next_transition(new_event$next_state, new_event$attributes)
+        
+        new_event
+        
+    }
+    
+    run_simulation <- function() {
+        # Create initial event_list
+        event_list <- setup_eventlist()
+        absorbant_list <- list()
+        
+        # Peak at top of list and see time of next event
+        while (event_list[[1]]$time < SIM_TIME) {
+            # Processes event on top of event_list and updates both lists
+            new_state <- run_timestep(event_list, absorbant_list)
+            event_list <- new_state[[1]]
+            absorbant_list <- new_state[[2]]
+        }
+        list(events=event_list, absorbed=absorbant_list)
+    }
+    
+    setup_eventlist <- function() {
+        initial_n <- ERROR_MARGIN * (ENTRY_RATE * SIM_TIME)
+        entry_times <- cumsum(rexp(initial_n, ENTRY_RATE))
+        # Remove values which are above maximum time
+        entry_times <- entry_times[entry_times < SIM_TIME]
+        n_inds <- length(entry_times)
+        
+        # Create attributes for all individuals
+        attrs <- data.frame(lapply(reactiveValuesToList(attributes), function(x) x$draw(n_inds)))
+        attrs_numeric <- bind_rows(apply(attrs, 1, convert_stringdata_to_numeric))
+        
+        # Create Event objects containing:
+        #   index
+        #   time of entry into state 1
+        #   attributes
+        new_events <- lapply(seq(n_inds), function(i) {
+            create_event(i, entry_times[i], attrs_numeric[i, ])
+        })
+        
+        # Create functions to determine the next event for each of these
+        for (i in seq_along(new_events)) {
+            new_events[[i]]$next_transition <- create_next_transition(new_events[[i]]$next_state, new_events[[i]]$attributes)
+        }
+        new_events
+    }
+    
+    run_timestep <- function(event_list, absorbant_list) {
+        nevent_list <- event_list
+        nabsorbant_list <- absorbant_list
+        
+        # Pop the current event from top of list
+        curr_event <- nevent_list[[1]]
+        nevent_list[[1]] <- NULL
+        curr_time <- curr_event$time
+        
+        # Process the current event to obtain its next transition
+        new_event <- process_event(curr_event)
+        
+        # If not in an absorbant state and have a next transition then add to queue
+        if (new_event$time > curr_time) {
+            # Insert new_event into appropriate place
+            times <- sapply(nevent_list, function(e) e$time)
+            # -1 as append below is the index AFTER which to insert value at
+            new_index <- if (new_event$time > max(times)) {
+                            length(times) + 1
+                         } else if (new_event$time < min(times)) {
+                            0
+                         } else {
+                            min(which(times - new_event$time > 0)) - 1 
+                         }
+            nevent_list <- append(nevent_list, list(new_event), new_index)
+        } else {
+            nabsorbant_list <- append(nabsorbant_list, list(new_event), length(nabsorbant_list)+1)
+        }
+        
+        # Update times for display
+        curr_time_reactive$curr_time <- curr_event$time
+        curr_time_reactive$next_time <- nevent_list[[1]]$time
+        
+        # Return updated event lists
+        list(nevent_list, nabsorbant_list)
+    }
+    
+    observeEvent(input$runsimbutton, {
+        withProgress(message="Simulating...", value=0, {
+            end_state <- run_simulation()
+            event_list <- end_state$events
+            absorbant_list <- end_state$absorbed
+        })
+            
+        print(data.frame(state=seq(3), num=c(sapply(seq(2), function(s) {
+            sum(sapply(event_list, function(e) e$curr_state ==s))
+            }),
+            length(absorbant_list)
+        )))
+    })
+    
+    observeEvent(input$runmultiplesimbutton, {
+        n_sims <- input$simslider
+        withProgress(message="Simulating...", value=0, {
+            print(system.time(
+                end_states <- lapply(seq(n_sims), function(i) run_simulation())
+            ))
+        })
+        print(length(end_states))
+    })
     
 })

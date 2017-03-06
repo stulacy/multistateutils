@@ -62,6 +62,12 @@ shinyUI(fluidPage(
                              h3("Transition time distributions"),
                              uiOutput("newdataarea")
                              ),
+            conditionalPanel(condition="input.selectedtab==6",
+                             h3("Simulation"),
+                             actionButton("runsimbutton", "Run simulation once"),
+                             sliderInput("simslider", "Number of simulations", min=10, max=10000, value=1000),
+                             actionButton("runmultiplesimbutton", "Run simulation multiple times")
+                             ),
             width=3
         ),
         mainPanel(
@@ -89,6 +95,10 @@ shinyUI(fluidPage(
                                  h3("Event time distributions"),
                                  plotOutput("plottingeventdraws"),
                                  value=5),
+                        tabPanel("Simulation",
+                                 h3("Run simulation"),
+                                 uiOutput("timedisplay"),
+                                 value=6),
                         id = "selectedtab"
             )
         )
