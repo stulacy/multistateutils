@@ -6,15 +6,16 @@ library(ggplot2)
 library(DiagrammeR)
 library(cowplot)
 library(flexsurv)
+library(parallel)
 
 # Remove when finished debugging
 #options(shiny.fullstacktrace=T)
 
 shinyServer(function(input, output, session) {
-    
+
     transitions <- reactiveValues()
     attributes <- reactiveValues()
-    
+
     MAX_STATES <- 10
     MIN_STATES <- 1
     NUM_STARTING_STATES <- 3
@@ -27,7 +28,7 @@ shinyServer(function(input, output, session) {
     COVAR_TYPES <- c("Individual attribute", "status", "time", "id", "other")
     DEFAULT_COVAR_TYPE <- 'other'
     NO_COVAR_FORMULA <- '1'
-    
+
     DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                 short="N",
                                 dtype = "Continuous",
@@ -127,15 +128,15 @@ shinyServer(function(input, output, session) {
                   )
     COVAR_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$attribute_prior)]
     TIME_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$time_to_event)]
-    
-    
+
+
     convert_stringdata_to_numeric <- function(df) {
         # Converts a data frame consisting of a list of strings to numeric format.
         # In particular it creates dummy binary predictors for categorical attributes
         attrs_list <- reactiveValuesToList(attributes)
-        
+
         newdf <- list()
-        
+
         for (a in names(df)) {
             # Create dummy variables for categorical
             if (attrs_list[[a]]$type == 'Categorical') {
@@ -146,7 +147,7 @@ shinyServer(function(input, output, session) {
                 }
                 # Set current value to 1
                 newdf[[paste(a, df[[a]], sep='.')]] <- 1
-                
+
             } else if (attrs_list[[a]]$type == 'Continuous') {
                 newdf[[a]] <- as.numeric(df[[a]])
             } else {
@@ -155,11 +156,11 @@ shinyServer(function(input, output, session) {
         }
         newdf
     }
-    
+
     create_param_string_from_mod = function(dist, mod, cat_vars) {
         num_params <- length(dist$params)
         ps <- coef(mod)
-        
+
         # flexsurv always returns coefficients as distribution parameters followed by covariates
         if (length(ps) > num_params) {
             covar <- paste(sapply(names(ps[(num_params+1):length(ps)]), function(x) paste0('[', x, ']')),
@@ -176,22 +177,22 @@ shinyServer(function(input, output, session) {
         # Parameterise distribution with covariates
         dist$get_params_from_mod(ps, covar)
     }
-    
-    
+
+
     get_attr_names <- function(str) {
-        # Extracts attribute names from a vector of strings 
+        # Extracts attribute names from a vector of strings
         # with params in format [param_name]
-        
+
         # Returns a vector of [param1], [param2]... strings
         raw <- regmatches(str, gregexpr("\\[.*?\\]", str))[[1]]
-        
+
         # Remove the brackets. NB: There's probably a neat regex to
         # do all these steps in one line but I don't know it
         raw1 <- gsub("\\[", "", raw)
         gsub("\\]", "", raw1)
-        
+
     }
-    
+
     create_eventtime_draw <- function(dist, params) {
         # Dist: A string that fits in the entries of the DISTS list
         # Params: A vector of parameter specifications in string format, i.e.:
@@ -207,12 +208,12 @@ shinyServer(function(input, output, session) {
         function(n, newdata) {
             # Evaluate parameters from data
             param_vals <- sapply(new_params, function(p) eval(p))
-            
+
             # Draw from distribution
             func(n, param_vals)
         }
     }
-    
+
     create_sample_func <- function(dist, params, labels=NULL) {
         force(params)
         force(dist)
@@ -229,7 +230,7 @@ shinyServer(function(input, output, session) {
             }
         }
     }
-    
+
     create_empirical_sample_func <- function(var, filter=NULL) {
         force(var)
         force(filter)
@@ -242,15 +243,15 @@ shinyServer(function(input, output, session) {
         }
         emp_dist <- data[[var]]
         function(n) {
-            sample(emp_dist, n, replace=T)  
+            sample(emp_dist, n, replace=T)
         }
     }
-    
+
     ############################### Load Data ##########################################################################
     uploaded_data <- reactive({
-        if (is.null(input$covarinput)) 
+        if (is.null(input$covarinput))
             return()
-        
+
         isolate({
             read.csv(input$covarinput$datapath, header=T, sep=',')
         })
@@ -258,16 +259,16 @@ shinyServer(function(input, output, session) {
 
     # Read in attribute information
     all_raw_attrs <- reactive({
-        
+
         in_data <- uploaded_data()
-        
+
         if (is.null(in_data))
             return()
-        
+
         input$speccolsbutton
-        
+
         # TODO Throw error if have different numbers and names in times and status columns
-        
+
         isolate({
             setNames(lapply(names(in_data), function(n) {
                 # Save categorical and continuous information
@@ -278,7 +279,7 @@ shinyServer(function(input, output, session) {
                     type <- 'Continuous'
                     levels <- NA
                 }
-                
+
                 if (!is.null(input$speccolsbutton) && input$speccolsbutton > 0) {
                     use <- input[[paste0('rawattr', n)]]
                 } else if (grepl("^time\\..+", n)) {
@@ -290,32 +291,32 @@ shinyServer(function(input, output, session) {
                 } else {
                     use <- DEFAULT_COVAR_TYPE
                 }
-                
+
                 list(type=type, levels=levels, use=use)
             }), names(in_data))
         })
     })
-    
+
     output$specifycols <- renderUI({
         in_data <- uploaded_data()
         if (is.null(in_data))
             return()
-        
+
         item_list <- list()
         item_list[[1]] <- h5("Please specify the nature of columns in this data set so they can be used appropriately later on.")
         item_list[[2]] <- spec_col_dropdown
         item_list[[3]] <- actionButton("speccolsbutton", "Update")
         do.call(tagList, item_list)
     })
-    
+
     spec_col_dropdown <- renderUI({
-        
+
         isolate({
             raw_attrs <- names(all_raw_attrs())
             item_list <- list()
-            
+
             for (i in seq_along(raw_attrs)) {
-                
+
                 # Obtain type information
                 attr <- all_raw_attrs()[[i]]
                 if (attr$type == 'Continuous') {
@@ -323,47 +324,47 @@ shinyServer(function(input, output, session) {
                 } else {
                     type_info <- paste('categorical with ', length(attr$levels), "values")
                 }
-                item_list[[i]] <- selectInput(paste0("rawattr", raw_attrs[i]), 
+                item_list[[i]] <- selectInput(paste0("rawattr", raw_attrs[i]),
                                               HTML(paste0(raw_attrs[i], ' (', type_info, ')')),
                                               choices=COVAR_TYPES,
                                               selected=all_raw_attrs()[[i]]$use)
             }
             do.call(tagList, item_list)
-            
+
         })
     })
-    
+
     output$datatable <- renderUI({
         if (is.null(uploaded_data()))
            return(p("No data uploaded."))
-        
+
         HTML(renderTable(head(uploaded_data()))())
     })
-    
+
     output$rawattrinfo <- renderUI({
-        if (is.null(uploaded_data())) 
+        if (is.null(uploaded_data()))
             return(p("No data uploaded."))
-        
+
         attr_list <- paste0("<ul>", paste0(sapply(COVAR_TYPES, function(b) {
                                 entries <- names(all_raw_attrs())[sapply(all_raw_attrs(), function(d) d$use == b)]
                                 paste0("<li>", b, "<ul>", paste0(sapply(entries, function(d) paste0("<li><code>", d, "</code></li>")), collapse=''), "</ul>", "</li>")
-                            }), 
+                            }),
                             collapse=''),
                             "</ul>")
         item_list <- list()
         item_list[[1]] <- p("The following column types have been linked with the following variables in the uploaded data set:")
         item_list[[2]] <- HTML(attr_list)
         do.call(tagList, item_list)
-        
+
     })
-    
+
     # TODO Place restrictions on attribute types, i.e. only one transition, time, and status col
     #input$speccolsbutton
-            
-    
-    
+
+
+
     ############################### States ############################################################
-    
+
     # This is the number of default states before the Update button has been pressed
     # in the States tab
     starting_states <- reactive({
@@ -373,22 +374,22 @@ shinyServer(function(input, output, session) {
             # If have uploaded data, then use these states
             if (length(time_vars) > 0) {
                 c(INITIAL_STATE_NAME, gsub("time\\.", '', time_vars))
-                
+
             } else {
                 LETTERS[1:NUM_STARTING_STATES]
             }
         })
     })
-    
-    
+
+
     states <- reactive({
         # If have pressed update button then get states from the inputs
         if (is.null(input$updatestates))
             return()
-        
+
         if (input$updatestates > 0) {
             isolate({
-                num_states <- if (is.null(input$stateslider)) NUM_STARTING_STATES else input$stateslider 
+                num_states <- if (is.null(input$stateslider)) NUM_STARTING_STATES else input$stateslider
                 # This should never be true but best to be careful
                 sapply(seq(num_states), function (i) {
                     ip <- input[[paste0("statename", i)]]
@@ -400,102 +401,102 @@ shinyServer(function(input, output, session) {
             starting_states()
         }
     })
-    
+
     # TODO Have remove button for each state
-    
+
     # TODO Remove transitions from states which don't exist
-    
+
     output$stateslider <- renderUI({
         sliderInput("stateslider", "Number of states", MIN_STATES, MAX_STATES, length(starting_states()))
     })
-    
-    
+
+
     output$states <- renderUI({
         state_slider <- input$stateslider
         if (is.null(state_slider))
             return()
-        
+
         isolate({
             item_list <- list()
             this_states <- states()
             num_states <- length(this_states)
             for (i in seq(state_slider)) {
                 label <- if (i <= num_states) this_states[i] else LETTERS[i]
-                item_list[[i]] <- textInput(paste0('statename', i), paste('State', i), 
+                item_list[[i]] <- textInput(paste0('statename', i), paste('State', i),
                                             label, width='40%')
             }
             do.call(tagList, item_list)
         })
     })
-    
+
     output$newtransheader <- renderUI({
         if (is.null(states()))  {
-            h5('Please add states first')  
+            h5('Please add states first')
         } else {
-            h4("New transition")          
+            h4("New transition")
         }
     })
-    
+
     output$seltrans <- renderUI({
         this_states <- states()
-        if (is.null(input$statename1)) 
+        if (is.null(input$statename1))
           return()
-        
+
         item_list <- list()
         item_list[[1]] <- selectInput("transfrom", "From", choices=this_states)
         item_list[[2]] <- selectInput("transto", "To", choices=this_states)
         do.call(tagList, item_list)
     })
-    
+
     output$addtransbutton <- renderUI({
         if (is.null(states()))
             return()
         actionButton("addtrans", "Add")
     })
-    
+
     observeEvent(input$addtrans, {
         new_index <- length(reactiveValuesToList(transitions)) + 1
         from <- which(states() == input$transfrom)
         to <- which(states() == input$transto)
         transitions[[paste(from, to, sep='-')]] <- list(from=from, to=to, index=new_index)
     })
-    
+
     output$currtransheader <- renderUI({
         txt <- if (length(reactiveValuesToList(transitions)) >= 1) 'Current transitions' else ''
         h4(txt)
     })
-    
+
     output$currtrans <- renderTable({
         from <- sapply(reactiveValuesToList(transitions), function(x) states()[x$from])
         to <- sapply(reactiveValuesToList(transitions), function(x) states()[x$to])
         data.frame(From=from, To=to)
     })
-    
-    
+
+
     output$statedia <- renderGrViz({
-      
+
         if (is.null(states())) {
           return()
         }
-        
+
         input$addtrans
-        
+
         isolate({
             edges <- sapply(reactiveValuesToList(transitions), function(x) paste(states()[x$from], states()[x$to], sep=" -> "))
             edge_vals <- sapply(reactiveValuesToList(transitions), function(x) x$index)
-            
+
             states_dot <- paste("node [shape=circle] ", paste0(states(), collapse=";"))
             edges_dot <- paste(
-                               mapply(function(e, v) 
+                               mapply(function(e, v)
                                      paste(e, "[label='", v, "']"), edges, edge_vals),
                                collapse=" \n ")
-            
+
             full <- paste("digraph states {", states_dot, edges_dot, "}")
             grViz(full)
         })
-      
+
     })
-    
+
     output$probsheader <- renderUI({
         if (length(reactiveValuesToList(transitions)) < 1) {
             h5("Add transitions before specifying their probability distributions")
@@ -503,8 +504,8 @@ shinyServer(function(input, output, session) {
             return()
         }
     })
-    
-    
+
+
     ############################### Attributes ##########################################################################
     output$sampledistheader <- renderUI({
         item_list <- list()
@@ -514,14 +515,14 @@ shinyServer(function(input, output, session) {
         } else {
             item_list[[1]] <- h3(paste0("Sampling distributions of the attributes (", NUM_ATTRIBUTE_DRAWS_PREVIEW, " samples displayed)"))
         }
-        
+
         do.call(tagList, item_list)
     })
-    
+
     output$plotarea <- renderPlot({
         if (is.null(attributes) || length(reactiveValuesToList(attributes)) == 0)
             return()
-        
+
         isolate({
             vars <- reactiveValuesToList(attributes)
             plots <- lapply(vars[!sapply(vars, is.null)], function(v) {
@@ -537,52 +538,52 @@ shinyServer(function(input, output, session) {
                             theme_bw()
                 }
             })
-        
+
             return(plot_grid(plotlist=plots, labels=names(plots)))
         })
     })
-    
-    
+
+
     ############################## Empirical covariates ############################
     output$loadattributes <- renderUI({
         ind_attrs <- all_raw_attrs()[sapply(all_raw_attrs(), function(a) a$use == 'Individual attribute')]
-        
+
         if (length(ind_attrs) == 0) {
             return(HTML("To include empirical distributions for covariates, please see the <strong>Upload Data</strong> tab to upload a CSV file and identify certain columns as containing individual attributes."))
         }
-        
+
         item_list <- list()
         item_list[[1]] <- h4("Select attributes")
         item_list[[2]] <- uiOutput("selloadedattrs")
         item_list[[3]] <- actionButton("updateselattrs", "Update")
         do.call(tagList, item_list)
     })
-    
+
     output$selloadedattrs <- renderUI({
         ind_attrs <- all_raw_attrs()[sapply(all_raw_attrs(), function(a) a$use == 'Individual attribute')]
         item_list <- list()
-        
+
         # Create checkboxes for each attribute
         for (i in seq_along(ind_attrs)) {
-            item_list[[i]] <- create_attribute_checkbox_dropdown(names(ind_attrs)[i], 
+            item_list[[i]] <- create_attribute_checkbox_dropdown(names(ind_attrs)[i],
                                                                  trans_names)
         }
         do.call(tagList, item_list)
     })
-    
+
     create_attribute_checkbox_dropdown <- function(attr, transitions) {
-        checkboxInput(paste0("selattrcheck", attr), 
+        checkboxInput(paste0("selattrcheck", attr),
                              HTML(paste0("<strong>", attr, "</strong>")),
                       value=T)
-        
+
     }
-    
+
     # Add empirical attributes to 'attributes' reactiveValues
     observeEvent(input$updateselattrs, {
         all_attrs <- all_raw_attrs()[sapply(all_raw_attrs(), function(x) x$use=='Individual attribute')]
         if (is.null(all_attrs))
             return()
-        
+
         # Iterate through number of attributes, obtaining the relevant checkbox and whether selected or not
         for (i in seq_along(all_attrs)) {
             attr_name <- names(all_attrs)[i]
@@ -598,8 +599,8 @@ shinyServer(function(input, output, session) {
             }
         }
     })
-    
-    
+
+
     ############################## Simulated covariates ############################
     output$simattributes <- renderUI({
         item_list <- list()
@@ -611,26 +612,26 @@ shinyServer(function(input, output, session) {
         item_list[[7]] <- actionButton("simadd", "Add")
         do.call(tagList, item_list)
     })
-    
-    
+
+
     observe({
         sim_type <- input$simtype
-        
+
         if (is.null(sim_type))
             return()
-        
+
         choices <- names(DISTS[COVAR_DISTS][sapply(DISTS[COVAR_DISTS], function(d) d$dtype == sim_type)])
         updateSelectInput(session, "simdist", choices=choices)
     })
-    
+
     output$simparams <- renderUI({
-        if (is.null(input$simdist)) 
+        if (is.null(input$simdist))
             return()
-        
-        # Force reactiveness on the Add covariate button, this enforces the resetting of the 
+
+        # Force reactiveness on the Add covariate button, this enforces the resetting of the
         # parameter text inputs, "simparam<x>"
         input$simadd
-        
+
         item_list <- list()
         if (input$simdist == "Multinomial") {
             item_list[[1]] <- sliderInput("multinomslider", "Number of parameters", 1, 10, value=2)
@@ -642,7 +643,7 @@ shinyServer(function(input, output, session) {
         }
         do.call(tagList, item_list)
     })
-    
+
     output$multinomparams <- renderUI({
         item_list <- list()
         for (i in seq(input$multinomslider)) {
@@ -652,10 +653,10 @@ shinyServer(function(input, output, session) {
         }
         do.call(tagList, item_list)
     })
-    
+
     # Add simulated attributes to 'attributes' reactiveValues
     observeEvent(input$simadd, {
-        
+
         if (input$simdist == "Multinomial") {
             num_params <- input$multinomslider
             params <- as.numeric(sapply(seq(num_params), function(i) input[[paste0("multinomparamval", i)]]))
@@ -665,7 +666,7 @@ shinyServer(function(input, output, session) {
             params <- as.numeric(sapply(seq(num_params), function(i) input[[paste0("simparam", i)]]))
             labels <- NULL
         }
-        
+
         # Confirm have name and both parameter values
         if (input$simname == '') {
             print("Error: Please provide a name for the covariate.")
@@ -674,51 +675,51 @@ shinyServer(function(input, output, session) {
         } else {
             attributes[[input$simname]] <- list(type=input$simtype, draw=create_sample_func(input$simdist, params, labels=labels),
                                                 levels=labels)
-            
+
             # Reset all values
             updateTextInput(session, "simname", value='')
             updateSelectInput(session, "simdist", selected='Normal')
         }
     })
-    
-    
+
+
     ############################### Long data ############################################################
     long_data <- reactive({
-        
+
         df <- uploaded_data()
-        
+
         if (is.null(df))
             return()
-        
+
         this_states <- states()
         trans <- reactiveValuesToList(transitions)
-        
+
         isolate({
             # Determine transition matrix
-            trans_mat <- matrix(NA, nrow=length(this_states), ncol=length(this_states), 
+            trans_mat <- matrix(NA, nrow=length(this_states), ncol=length(this_states),
                         dimnames = list(this_states, this_states))
             for (t in trans) {
                 trans_mat[this_states[t$from], this_states[t$to]] <- t$index
             }
-            
+
             # Obtain data and column names
             all_attrs <- all_raw_attrs()
             time_vars <- names(all_attrs)[sapply(all_attrs, function(a) a$use == 'time')]
             status_vars <- names(all_attrs)[sapply(all_attrs, function(a) a$use == 'status')]
             id_var <- names(all_attrs)[sapply(all_attrs, function(a) a$use == 'id')]
             co_var <- names(all_attrs)[sapply(all_attrs, function(a) a$use == 'Individual attribute')]
-            
+
             # Obtain states that aren't in uploaded data and aren't first state (i.e. won't have column in csv)
             in_dataset <- sapply(seq_along(states()), function(i) {
                 col_names <- paste(c('time', 'status'), states()[i], sep='.')
                 (all(col_names %in% names(df)) || i == 1)
             })
-            
-            # If have any new states that weren't in original uploaded data 
+
+            # If have any new states that weren't in original uploaded data
             # add time and status columns
             if (!all(in_dataset)) {
                 last_followups <- apply(df[, time_vars], 1, max)
-                
+
                 for (s in states()[!in_dataset]){
                     status_col <- paste('status', s, sep='.')
                     time_col <- paste('time', s, sep='.')
@@ -726,92 +727,92 @@ shinyServer(function(input, output, session) {
                     df[[status_col]] <- 0
                     # time column set to row-wise maximum, i.e. last follow-up
                     df[[time_col]] <- last_followups
-                    
+
                     # Add new columns to time and status vars
                     time_vars <- c(time_vars, time_col)
                     status_vars <- c(status_vars, status_col)
                 }
-                
+
             }
-            
+
             if (!is.null(id_var)) {
-                long <- msprep(time=c(NA, time_vars), 
-                               status=c(NA, status_vars), 
+                long <- msprep(time=c(NA, time_vars),
+                               status=c(NA, status_vars),
                                data=df, trans=trans_mat, id=id_var, keep=co_var)
             } else {
-                long <- msprep(time=c(NA, time_vars), 
-                               status=c(NA, status_vars), 
+                long <- msprep(time=c(NA, time_vars),
+                               status=c(NA, status_vars),
                                data=df, trans=trans_mat,
                                keep=co_var)
             }
         })
     })
-    
+
     ############################### Transition Probabilities ############################################################
-    
-    
+
+
     ############ Generic area for both specifying parameters and having them estimated from data
     output$seltransprobs <- renderUI({
         trans <- reactiveValuesToList(transitions)
-        if (length(trans) < 1) 
+        if (length(trans) < 1)
             return()
-        
+
         trans_nonsel <- sapply(trans, function(t) is.null(t$draw))
         vals <- sapply(trans[trans_nonsel], function(t) t$index)
-        labels <- sapply(trans[trans_nonsel], function(t) paste(states()[t$from], 
+        labels <- sapply(trans[trans_nonsel], function(t) paste(states()[t$from],
                                                                 states()[t$to], sep=' to '))
         ord <- order(vals)
-        
+
         choices <- setNames(vals[ord], labels[ord])
-        
+
         selectInput("transprob", "Transition", choices=choices)
-        
+
     })
-    
+
     output$transprobsbuttons <- renderUI({
         trans <- reactiveValuesToList(transitions)
-        
-        if (length(trans) < 1) 
+
+        if (length(trans) < 1)
             return()
-        
-        if (is.null(input$transprob) || input$transprob == '') 
+
+        if (is.null(input$transprob) || input$transprob == '')
             return()
-        
+
         item_list <- list()
         item_list[[1]] <- actionButton("paramsspecifybutton", "Specify parameters manually")
         item_list[[2]] <- br()
-        
+
         this_trans <- trans[sapply(trans, function(t) t$index == input$transprob)][[1]]
         from_state <- states()[this_trans$from]
         to_state <- states()[this_trans$to]
-        
+
         from_states <- paste(c('time', 'status'), from_state, sep='.')
         to_states <- paste(c('time', 'status'), to_state, sep='.')
-        
+
         # If source state isn't in data set (excluding starting state) then quit
         # TODO Really should combine this into a single boolean statement but am sure
         # will make a mistake when making it
         if (!all(from_states %in% names(uploaded_data())) && this_trans$from != 1) {
-            
+
         } else if (!all(to_states %in% names(uploaded_data())) || this_trans$to == 1) {
-            
+
         } else {
             item_list[[3]] <- br()
             item_list[[4]] <- actionButton("paramsestimatebutton", "Estimate parameters from data")
         }
         do.call(tagList, item_list)
     })
-    
+
     observeEvent(input$paramsspecifybutton, {
         if (input$paramsspecifybutton > 0)
             output$addtransarea <- specify_params_area
     })
-    
+
     observeEvent(input$paramsestimatebutton, {
         if (input$paramsestimatebutton > 0)
             output$addtransarea <- estimate_params_area
     })
-    
+
     # Attribute levels that are allowed for the manual specification of variables
     allowed_attrs <- reactive({
         sapply(names(attributes), function(a) {
@@ -822,24 +823,24 @@ shinyServer(function(input, output, session) {
                 paste(a, attr$levels[-1], sep='.')  # TODO Shouldn't levels be stored in attributes rather than getting it from raw data?!
             }
         })
-        
+
     })
-    
+
     output$transprobssummary <- renderUI({
         trans <- reactiveValuesToList(transitions)
         have_dist <- sapply(trans, function(t) !is.null(t$draw))
-        
+
         if (sum(have_dist) < 1)
             return(h5("No distributions defined yet"))
-        
+
         txt <- paste0("<ul>", sapply(trans[have_dist], function(t) {
-            paste0("<li>", states()[t$from], ' to ', states()[t$to],  
+            paste0("<li>", states()[t$from], ' to ', states()[t$to],
                    "<ul>", # Start first level of indentation for each transition
                        "<li>Distribution: ", t$dist, "</li>",
-                       "<li>Parameters: ", 
+                       "<li>Parameters: ",
                            "<ul>",
                            paste(sapply(seq_along(DISTS[[t$dist]]$params), function(i) {
-                              paste("<li>", DISTS[[t$dist]]$params[[i]], ": ", t$params[i], "</li>") 
+                              paste("<li>", DISTS[[t$dist]]$params[[i]], ": ", t$params[i], "</li>")
                            }), collapse=''),
                            "</ul>", # Closing parameters list
                        "</li>", # Closing Parameters item
@@ -850,13 +851,13 @@ shinyServer(function(input, output, session) {
         )
         HTML(txt)
     })
-    
+
     ############ Providing params manually
     specify_params_area <- renderUI({
-        
+
         item_list <- list()
         item_list[[1]] <- HTML(paste("Enter any valid R expression with attribute names in brackets.",
-                                     "Categorical variables must be specified as <code>[var_name.level]</code>", 
+                                     "Categorical variables must be specified as <code>[var_name.level]</code>",
                                      "omitting the baseline level.",
                                      "<br>",
                                      "For example:<br><code>exp(-3 + 0.25 * [age] + 1.25 * [sex.M])</code><br><br>"))
@@ -866,15 +867,15 @@ shinyServer(function(input, output, session) {
         item_list[[5]] <- addtransprobsbutton
         do.call(tagList, item_list)
     })
-    
-    
+
+
     allowed_params <- function(params) {
         if (length(params) < 1) {
             out <- h5("No attributes provided from a data source.")
         } else {
-            attr_list <- paste0("<ul>", paste0(sapply(seq_along(params), function(b)  
+            attr_list <- paste0("<ul>", paste0(sapply(seq_along(params), function(b)
                                 paste0("<li>", names(params)[b], "<ul>", paste0(sapply(params[[b]], function(d) paste0("<li><code>[", d, "]</code></li>")), collapse=''), "</ul>", "</li>")
-                                ), 
+                                ),
                                 collapse=''),
                                 "</ul>")
             item_list <- list()
@@ -884,46 +885,46 @@ shinyServer(function(input, output, session) {
         }
         renderUI(out)
     }
-    
+
     seldist <- renderUI({
-        if (length(reactiveValuesToList(transitions)) < 1) 
+        if (length(reactiveValuesToList(transitions)) < 1)
             return()
-        
+
         selectInput("seldist", "Distribution", choices=names(DISTS[TIME_DISTS]))
     })
-    
+
     selparams <- renderUI({
-        if (length(reactiveValuesToList(transitions)) < 1 || is.null(input$seldist)) 
+        if (length(reactiveValuesToList(transitions)) < 1 || is.null(input$seldist))
             return()
-        
+
         item_list <- list()
         for (i in seq_along(DISTS[[input$seldist]]$params)) {
             item_list[[i]] <- textInput(paste0("param", i), DISTS[[input$seldist]]$params[i], "")
         }
         do.call(tagList, item_list)
     })
-    
+
     addtransprobsbutton <- renderUI({
-        if (length(reactiveValuesToList(transitions)) < 1) 
+        if (length(reactiveValuesToList(transitions)) < 1)
             return()
-        
+
         actionButton("transprobbutton", "Update")
     })
-    
+
     observeEvent(input$transprobbutton, {
         index <- input$transprob
         trans_name <- names(transitions)[sapply(names(transitions), function(n) transitions[[n]]$index == index)]
         dist <- input$seldist
         params <- sapply(seq_along(DISTS[[dist]]$params), function(i) input[[paste0('param', i)]])
-        
+
         # Confirm have covariate names in attributes list
         attr_names <- get_attr_names(params)
-        
+
         attrs <- allowed_attrs()
-        
+
         # See if have any categorical variables without all levels specified
         missing_cat_levels <- sapply(attrs, function(x) any(x %in% attr_names) && ! all(x %in% attr_names))
-        
+
         if (!all(attr_names %in% unlist(attrs))) {
             print(paste("Error: some attribute names not loaded into simulation.", attr_names[!attr_names %in% attrs]))
         } else if (any(missing_cat_levels)) {
@@ -931,7 +932,7 @@ shinyServer(function(input, output, session) {
         } else if (any(params == '')) {
             print("Error: Please specify parameter(s).")
         }
-        
+
         else {
             transitions[[trans_name]]$draw <- create_eventtime_draw(dist, params=params)
             transitions[[trans_name]]$params <- params
@@ -939,61 +940,61 @@ shinyServer(function(input, output, session) {
             # Reset the parameter specification area in preparation for next transition
             output$addtransarea <- renderUI({NULL})
         }
-        
+
     })
-    
-    
+
+
     ############ Estimating params from data
     estimate_params_area <- renderUI({
         time_var <- names(all_raw_attrs())[sapply(all_raw_attrs(), function(x) x$use == 'time')]
         time_label <- if (length(time_var) >= 1) time_var else "unspecified"
-        
+
         status_var <- names(all_raw_attrs())[sapply(all_raw_attrs(), function(x) x$use == 'status')]
         status_label <- if (length(status_var) >= 1) status_var else "unspecified"
-        
+
         item_list <- list()
         item_list[[1]] <- var_checkbox
         item_list[[2]] <- if (length(status_var) > 0 && length(time_var) > 0) actionButton("estimateparamsbutton", "Estimate") else HTML("Please specify time and status variables in tab <strong>Upload Data</strong>")
         do.call(tagList, item_list)
-        
+
     })
-    
+
     var_checkbox <- renderUI({
         # Only display attribute checklist if have attributes
         # Only include attributes from the data set
-        chosen_attrs <- names(attributes)[names(attributes) %in% 
+        chosen_attrs <- names(attributes)[names(attributes) %in%
                                           names(all_raw_attrs()[sapply(all_raw_attrs(), function(a) a$use == 'Individual attribute')])]
-        
-        if (length(chosen_attrs) < 1) 
+
+        if (length(chosen_attrs) < 1)
             return()
         checkboxGroupInput("estimateparamsvars", "Attributes to include", choices=chosen_attrs)
     })
-    
+
     observeEvent(input$estimateparamsbutton, {
-        
+
         # Obtain details of transition under interest
         trans_index <- input$transprob
         trans_name <- names(transitions)[sapply(names(transitions), function(n) transitions[[n]]$index == trans_index)]
-        
+
         # Obtain covariate names from checkboxes and names of categorical variables
         if (!is.null(input$estimateparamsvars)) {
-            covars <- input$estimateparamsvars 
+            covars <- input$estimateparamsvars
             cat_vars <- covars[sapply(reactiveValuesToList(attributes)[covars], function(x) x$type == 'Categorical')]
         } else {
             covars <- NO_COVAR_FORMULA
             cat_vars <- NULL
         }
-        
+
         # Obtain time and status variable from correct place
         time_var <- names(all_raw_attrs())[sapply(all_raw_attrs(), function(x) x$use == 'time')]
         status_var <- names(all_raw_attrs())[sapply(all_raw_attrs(), function(x) x$use == 'status')]
-        
+
         # Subset data set to the transition of interest
-        data <- long_data() %>% 
+        data <- long_data() %>%
                     filter(trans == trans_index)
-        
+
         form <- paste0("Surv(Tstart, Tstop, status) ~ ", paste(covars, collapse='+'))
-        
+
         # Iterate through each distribution and build model
         withProgress(message="Fitting models...", value=0, {
             mods <- lapply(TIME_DISTS, function(d) {
@@ -1002,7 +1003,7 @@ shinyServer(function(input, output, session) {
                          )
             })
         })
-        
+
         AIC <- sapply(mods, function(x) {
             if (!is.null(x)) {
                 x$AIC
@@ -1011,10 +1012,10 @@ shinyServer(function(input, output, session) {
             }
         })
         best_mod <- which.min(AIC)
-        
+
         # Save AIC scores to table
         aic_scores[[trans_index]] <- data.frame(Distribution=TIME_DISTS, AIC=AIC)
-        
+
         # Set the draw method for this transition to be the winning dist
         winning_dist <- TIME_DISTS[best_mod]
         winning_mod <- mods[[best_mod]]
@@ -1022,19 +1023,19 @@ shinyServer(function(input, output, session) {
         transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist, params=params_str)
         transitions[[trans_name]]$params <- params_str
         transitions[[trans_name]]$dist <- winning_dist
-        
+
         # Reset specification of transition probabilities area for next transition
         output$addtransarea <- renderUI({NULL})
     })
-    
+
     aic_scores <- reactiveValues()
-    
+
     output$aicdiv <- renderUI({
         tlist <- reactiveValuesToList(transitions)
         aic_list <- reactiveValuesToList(aic_scores)
         if (length(aic_list) == 0)
             return()
-        
+
         item_list <- list()
         item_list[[1]] <- h3("Model Comparison")
         for (i in seq_along(aic_list)) {
@@ -1044,16 +1045,16 @@ shinyServer(function(input, output, session) {
         }
         do.call(tagList, item_list)
     })
-    
-    
+
+
     ############################### Display Event Time Distributions ##########################################################################
-    
+
     output$newdataarea <- renderUI({
         if (length(reactiveValuesToList(transitions)) < 1)
             return()
         if (sum(sapply(reactiveValuesToList(transitions), function(t) !is.null(t$draw))) < 1)
             return()
-        
+
         item_list <- list()
         item_list[[1]] <- hr()
         item_list[[2]] <- h4("New data for plotting")
@@ -1063,12 +1064,12 @@ shinyServer(function(input, output, session) {
         item_list[[5]] <- actionButton("updatenewdata", "Plot")
         do.call(tagList, item_list)
     })
-    
+
     newdata_select <- renderUI({
         item_list <- list()
         # Obtain attributes
         attrs <- reactiveValuesToList(attributes)
-    
+
         # For each attribute obtain expected value to use as default selected value
         for (i in seq_along(attrs)){
             attr <- attrs[[i]]
@@ -1088,16 +1089,16 @@ shinyServer(function(input, output, session) {
             } else {
                 stop(paste0("Error: attribute '", attr, "' has unknown type: '", attr$type, "'."))
             }
-            
+
         }
         do.call(tagList, item_list)
     })
-    
+
     newdata <- eventReactive(input$updatenewdata, {
         attrs <- reactiveValuesToList(attributes)
         if (length(attrs) < 1)
             return(list())
-        
+
         if (input$updatenewdata == 0) {
             attr <- attrs[[i]]
             sapply(attrs, function(a) {
@@ -1117,33 +1118,33 @@ shinyServer(function(input, output, session) {
             inputs <- sapply(names(attrs), function(a) input[[paste0('newdata', a)]])
             if (any(sapply(inputs, is.null)))
                 return(list())
-            
-            inputs    
+
+            inputs
         }
-        
+
     })
-    
-    
+
+
     output$plottingeventdraws <- renderPlot({
         if (length(reactiveValuesToList(transitions)) < 1)
             return()
-        
+
         if (sum(sapply(reactiveValuesToList(transitions), function(t) !is.null(t$draw))) < 1)
             return()
-        
+
         newdf <- newdata()
-        
+
         if (length(newdf) != length(reactiveValuesToList(attributes)))
             return()
-        
+
         # Convert raw string input to numeric data frame (including dummy variables for categorical attributes)
         newdf_numeric <- convert_stringdata_to_numeric(newdf)
-        
+
         vars <- reactiveValuesToList(transitions)
         vars <- vars[!sapply(vars, function(v) is.null(v$draw))]  # Only include transitions with a specified draw method
-        
+
         labels <- sapply(vars, function(t) paste(states()[t$from], states()[t$to], sep='-'))
-        
+
         plots <- lapply(vars, function(v) {
             vals <- v$draw(NUM_TIMES_DRAWS_PREVIEW, newdata=newdf_numeric)
             ggplot(data.frame(x=vals), aes(x=x)) +
@@ -1152,12 +1153,12 @@ shinyServer(function(input, output, session) {
         })
         return(plot_grid(plotlist=plots, labels=labels))
     })
-    
-    
+
+
     ############################### Simulation ##########################################################################
-    
+
     curr_time_reactive <- reactiveValues(curr_time=0, next_time=0)
-    
+
     create_event <- function(id, time, attributes) {
         obj <- list(history=data.frame(state=NULL, entry_time=NULL),
                     curr_state = -1,
@@ -1170,42 +1171,42 @@ shinyServer(function(input, output, session) {
         class(obj) <- c(class(obj), 'event')
         obj
     }
-    
+
     # TODO Have these chosen by user
     ENTRY_RATE <- 0.1
     SIM_TIME <- 1000
     ERROR_MARGIN <- 1.25
-    
+
     output$timedisplay <- renderUI({
         item_list <- list()
         item_list[[1]] <- h5(paste("Current time:", curr_time_reactive$curr_time))
         item_list[[2]] <- h5(paste("Next event time:", curr_time_reactive$next_time))
         do.call(tagList, item_list)
     })
-    
+
     # TODO See if force is required here
     create_next_transition <- function(starting_state, attrs) {
         force(starting_state)
         force(attrs)
-        
+
         # Subset transitions where have specific starting state and draw method
         trans <- reactiveValuesToList(transitions)
-        trans <- trans[sapply(trans, function(t) t$from == starting_state && !is.null(t$draw))]  
+        trans <- trans[sapply(trans, function(t) t$from == starting_state && !is.null(t$draw))]
         force(trans)
-        
+
         function() {
             if (length(trans) == 0)
                 return(NULL)
-            
+
             times <- sapply(trans, function(t) t$draw(1, newdata=attrs))
             # Obtain next event as next time
             next_time <- which.min(times)
             # Return the next state and its time
             c(times[next_time], trans[[next_time]]$to)
         }
-        
+
     }
-    
+
     # Function that runs when an event occurs. Creates the subsequent event and returns it
     process_event <- function(event) {
         # Create new event as copy of old
@@ -1216,27 +1217,27 @@ shinyServer(function(input, output, session) {
         new_event$history <- rbind(new_event$history, c(event$next_state, event$time))
         # determine next state and time
         next_trans <- event$next_transition()
-        
+
         # If in an absorbant state, return state as it is
         if (is.null(next_trans)) {
             return(new_event)
         }
-        
+
         # update next state and time (time will be current time + time to next event)
         new_event$time <- next_trans[1] + event$time
         new_event$next_state <- next_trans[2]
-        # set next_transition 
+        # set next_transition
         new_event$next_transition <- create_next_transition(new_event$next_state, new_event$attributes)
-        
+
         new_event
-        
+
     }
-    
+
     run_simulation <- function() {
         # Create initial event_list
         event_list <- setup_eventlist()
         absorbant_list <- list()
-        
+
         # Peak at top of list and see time of next event
         while (event_list[[1]]$time < SIM_TIME) {
             # Processes event on top of event_list and updates both lists
@@ -1246,18 +1247,18 @@ shinyServer(function(input, output, session) {
         }
         list(events=event_list, absorbed=absorbant_list)
     }
-    
+
     setup_eventlist <- function() {
         initial_n <- ERROR_MARGIN * (ENTRY_RATE * SIM_TIME)
         entry_times <- cumsum(rexp(initial_n, ENTRY_RATE))
         # Remove values which are above maximum time
         entry_times <- entry_times[entry_times < SIM_TIME]
         n_inds <- length(entry_times)
-        
+
         # Create attributes for all individuals
         attrs <- data.frame(lapply(reactiveValuesToList(attributes), function(x) x$draw(n_inds)))
         attrs_numeric <- bind_rows(apply(attrs, 1, convert_stringdata_to_numeric))
-        
+
         # Create Event objects containing:
         #   index
         #   time of entry into state 1
@@ -1265,26 +1266,26 @@ shinyServer(function(input, output, session) {
         new_events <- lapply(seq(n_inds), function(i) {
             create_event(i, entry_times[i], attrs_numeric[i, ])
         })
-        
+
         # Create functions to determine the next event for each of these
         for (i in seq_along(new_events)) {
             new_events[[i]]$next_transition <- create_next_transition(new_events[[i]]$next_state, new_events[[i]]$attributes)
         }
         new_events
     }
-    
+
     run_timestep <- function(event_list, absorbant_list) {
         nevent_list <- event_list
         nabsorbant_list <- absorbant_list
-        
+
         # Pop the current event from top of list
         curr_event <- nevent_list[[1]]
         nevent_list[[1]] <- NULL
         curr_time <- curr_event$time
-        
+
         # Process the current event to obtain its next transition
         new_event <- process_event(curr_event)
-        
+
         # If not in an absorbant state and have a next transition then add to queue
         if (new_event$time > curr_time) {
             # Insert new_event into appropriate place
@@ -1295,43 +1296,49 @@ shinyServer(function(input, output, session) {
                          } else if (new_event$time < min(times)) {
                             0
                          } else {
-                            min(which(times - new_event$time > 0)) - 1 
+                            min(which(times - new_event$time > 0)) - 1
                          }
             nevent_list <- append(nevent_list, list(new_event), new_index)
         } else {
             nabsorbant_list <- append(nabsorbant_list, list(new_event), length(nabsorbant_list)+1)
         }
-        
+
         # Update times for display
         curr_time_reactive$curr_time <- curr_event$time
         curr_time_reactive$next_time <- nevent_list[[1]]$time
-        
+
         # Return updated event lists
         list(nevent_list, nabsorbant_list)
     }
-    
+
     observeEvent(input$runsimbutton, {
         withProgress(message="Simulating...", value=0, {
             end_state <- run_simulation()
             event_list <- end_state$events
             absorbant_list <- end_state$absorbed
         })
-            
+
         print(data.frame(state=seq(3), num=c(sapply(seq(2), function(s) {
             sum(sapply(event_list, function(e) e$curr_state ==s))
             }),
             length(absorbant_list)
         )))
     })
-    
+
     observeEvent(input$runmultiplesimbutton, {
         n_sims <- input$simslider
         withProgress(message="Simulating...", value=0, {
-            print(system.time(
-                end_states <- lapply(seq(n_sims), function(i) run_simulation())
-            ))
+            print(system.time({
+                platform <- .Platform$OS.type
+                if (platform == "unix") {
+                    end_states <- mclapply(seq(n_sims), function(i) run_simulation(),
+                                           mc.cores=4)
+                } else {
+                    end_states <- lapply(seq(n_sims), function(i) run_simulation())
+                }
+            }))
         })
         print(length(end_states))
     })
-    
+
 })
