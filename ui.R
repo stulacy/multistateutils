@@ -63,10 +63,17 @@ shinyUI(fluidPage(
                              uiOutput("newdataarea")
                              ),
             conditionalPanel(condition="input.selectedtab==6",
-                             h3("Simulation"),
-                             actionButton("runsimbutton", "Run simulation once"),
-                             sliderInput("simslider", "Number of simulations", min=10, max=10000, value=1000),
-                             actionButton("runmultiplesimbutton", "Run simulation multiple times")
+                             h3("Simulation parameters"),
+                             textInput("entryrate", "Entry rate (number/unit of time)"),
+                             selectInput("terminationcriteria", "Termination Criteria", 
+                                         choices=c("Select one"="", "Time limit", "Number of individuals")),
+                             uiOutput("termcriteriadiv"),
+                             hr(),
+                             sliderInput("simslider", "Number of simulations", min=1, max=10000, value=1000),
+                             actionButton("runmultiplesimbutton", "Run simulation multiple times"),
+                             uiOutput("savebuttons")
+                             #textInput('simname', 'Simulation Name'),
+                             #downloadButton("savemodel")
                              ),
             width=3
         ),
