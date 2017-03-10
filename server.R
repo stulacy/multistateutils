@@ -34,7 +34,7 @@ shinyServer(function(input, output, session) {
     DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                 short="N",
                                 dtype = "Continuous",
-                                time_to_event=TRUE,
+                                time_to_event=FALSE,
                                 attribute_prior=TRUE,
                                 draw = function(n, params) rnorm(n, mean=params[1], sd=params[2]),
                                 cumdens = function(time, params) pnorm(time, mean=params[1], sd=params[2])),
