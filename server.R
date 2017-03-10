@@ -1235,6 +1235,22 @@ shinyServer(function(input, output, session) {
         }
     )
     
+    # TODO This method currently only produces wide formatted CSVs, where each state is either visited or not.
+    # This doesn't allow for recurrent visits to states, even though my DES model allows this to happen.
+    # I should really change the output of the DES to better reflect this, rather than forcing it into the 
+    # wide mstate CSV method. 
+    #
+    # Maybe just return a long data frame with a row referring to a transitions with the following columns:
+    #   - sim number
+    #   - individual number
+    #   - time
+    #   - start state
+    #   - end state
+    # 
+    # I could then write wrappers to convert it to mstate style wide tables, or long mstate transition tables
+    # But essentially, since there are so many possibilities of what the user would want to do with the
+    # simulation results, it's probably better to provide it as raw as possible and let them do the manual
+    # tweaking to obtain the required format for their specific analysis
     output$saveresults <- downloadHandler(
         filename = function() {
             paste0(input$simulationname, '_results.csv')
@@ -1251,24 +1267,6 @@ shinyServer(function(input, output, session) {
                     message(paste0("Error: Unknown termination criteria '", input$terminationcriteria, "'."))
                     return()
                 }
-                #foo <- as.data.frame(t(sapply(seq_along(res[[sim_num]]), function(event_num) {
-                #    # Determine patient individual attributes
-                #    event <- res[[sim_num]][[event_num]]
-                #    attrs <- c(event_num, unlist(event$attributes))
-                #    
-                #    in_absorbtive_state <- event$curr_state == event$next_state
-                #    
-                #    # Determine state transition times and censoring values
-                #    event_occured <- sapply(seq(num_states), function(s) s %in% event$history[, 1])
-                #    states_occured <- seq(num_states)[event_occured]
-                #    status <- as.numeric(event_occured)
-                #    times <- rep(NA, num_states)
-                #    times[states_occured] <- sapply(states_occured, function(s) event$history[event$history[, 1] == s, 2])
-                #    times[-states_occured] <- if (in_absorbtive_state) max(times, na.rm=T) else censor_time
-                #    state_vals <- as.vector(sapply(seq(num_states), function(s) c(times[s], status[s])))
-                #    output <- as.character(c(attrs, state_vals))
-                #    output
-                #    })))
                 as.data.frame(t(sapply(seq_along(res[[sim_num]]), function(event_num) {
                     # Determine patient individual attributes
                     event <- res[[sim_num]][[event_num]]
@@ -1514,9 +1512,6 @@ shinyServer(function(input, output, session) {
             }))
         })
         end_states
-    })
-
-    observeEvent(input$runmultiplesimbutton, {
     })
 
 })
