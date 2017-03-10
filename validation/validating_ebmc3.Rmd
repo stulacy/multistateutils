@@ -1,0 +1,232 @@
+---
+title: "R Notebook"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+---
+
+```{r setup, echo=F, message=F, warning=F}
+library(mstate)
+library(survival)
+library(dplyr)
+library(ggplot2)
+```
+
+# Introduction
+
+The purpose of this notebook is to validate the Discrete Event Simulation I've developed. I will do this by comparing a simulated data set to the actual data set that was used to generate the transition distributions for the DES. The comparison will be performed by modelling both simulated and actual data sets using the non-parametric estimators in `mstate` and comparing the hazard estimates. The data set used in this comparison is the publicly available `ebmct3` data set, provided by the `mstate` package. It describes post-transplant recovery in liver disease patients. There are 3 states:
+
+  1. Initial state, have just had transplant
+  2. Platelet recovery
+  3. Death
+  
+It is a simple illness-death model, in that patients all start in state 1 and can transition to either 2 or 3, with there also being a platelet recovery -> death transition.
+
+There are several covaiates available but I have just selected 2:
+
+  - 'age': A categorical variable with age discretised into bands
+  - 'disease': The disease that the patients are diagnosed with
+
+# Data preparation
+
+## Raw data
+
+Rather than using the data set as provided by `mstate`, I'll use a CSV I've written with the predictors of interest. Otherwise, there is no difference from the full data set.
+
+```{r}
+actual_data <- read.csv("../data/ebmt3_wide.csv")
+head(actual_data)
+```
+
+```{r}
+sim_data <- read.csv("ebmct3_simulated_results.csv")
+head(sim_data)
+```
+
+We can see that the simulated data set looks rather similar but has additional columns for entry into state 1. However, since our time-scale is relative to transplant, this information isn't useful (for now), and so we should change the `pr` and `rfs` state entry times to be relative to entry into the simulation `initial.time`.
+
+The values corresponding to entry into this initial state can then be discarded, along with the simulation number (since it was only run once).
+
+```{r}
+sim_data <- sim_data %>%
+        mutate(pr.time = pr.time - Initial.time,
+               rfs.time = rfs.time - Initial.time)  %>%
+        select(-c(Initial.time, Initial.status, sim_num))
+head(sim_data)
+```
+
+The two data sets look the smae in terms of their structure:
+
+```{r}
+dim(actual_data)
+dim(sim_data)
+```
+
+I accidentally simulated one too many individuals for the DES, but this is negligible given there were over two thousand patients in total.
+
+## Transition matrix
+
+To compare the accuracy of the simulation, I will create multi-state models of both data sets using the non-parameteric methods provided by `mstate`. One requirement of this is a transition matrix. Fortunately, `mstate` provides illness-death transition matrices out of the box.
+
+```{r}
+trans_mat <- trans.illdeath()
+trans_mat
+```
+
+Where our healthy state is *Initial* (just after transplant), illness is platelet recovery (pr), and death is... well death.
+
+## Formatting into long tables
+
+To use `mstate`, the data needs to be in long format, with each row corresponding to a potential transition, rather than the current wide format where each row relates to an entire patient transition history. Fortunately, `mstate` provides the `msprep` function to handle this conversion. 
+
+```{r}
+actual_long <- msprep(time=c(NA, 'time.pr', 'time.rfs'), 
+                      status=c(NA, 'status.pr', 'status.rfs'),
+                      data=actual_data,
+                      trans=trans_mat,
+                      keep = c('age', 'disease'))
+head(actual_long)
+```
+
+```{r}
+sim_long <- msprep(time=c(NA, 'pr.time', 'rfs.time'), 
+                      status=c(NA, 'pr.status', 'rfs.status'),
+                      data=sim_data,
+                      trans=trans_mat,
+                      keep = c('age', 'disease'))
+head(sim_long)
+```
+
+Dummy variables facilicating transition-specific covariate effects also need to be provided. This is handled by the `expand.covs` function.
+
+```{r}
+actual_long_covs <- expand.covs(actual_long, c('age', 'disease'), append=T)
+head(actual_long_covs)
+```
+
+```{r}
+sim_long_covs <- expand.covs(sim_long, c('age', 'disease'), append=T)
+head(sim_long_covs)
+```
+
+# Modelling
+
+Before fitting Cox models to the data to determine hazard ratio estimates, I'll look at the Kaplan-Meier estimators of each transition.
+
+## Kaplan-Meier estimates
+
+Firstly combine both sets of transition times into a singular data set.
+
+```{r}
+tot_data <- rbind(actual_long_covs, sim_long_covs)
+tot_data$data <- rep(c('actual', 'simulated'), c(nrow(actual_long_covs), nrow(sim_long_covs)))
+```
+
+### Transition initial to platelet recovery
+
+```{r}
+ecsgR::ggkm(survfit(Surv(Tstart, Tstop, status) ~ strata(data), data=subset(tot_data, trans==1)))
+```
+
+The time-scale needs to be reduced as the simulated data set runs until patients die, which, with the use of parameteric distributions can produce 'immortality' resulting from drawing an extreme value from the distribution which can occur when sampling a large number of individuals. For example, in this case the maximum time to event is 3e5 days, more than 800 years.
+
+```{r}
+ecsgR::ggkm(survfit(Surv(Tstart, Tstop, status) ~ strata(data), data=subset(tot_data, trans==1))) + xlim(0, 5e3)
+```
+
+This shows that the underlying time-to-event distributions are rather different. This could be influenced by the fact that the simulated patients are followed up until they die, which due to the afore-mentioned 'immortality' issue can skew the results.
+
+### Transition initial to death
+
+```{r}
+ecsgR::ggkm(survfit(Surv(Tstart, Tstop, status) ~ strata(data), data=subset(tot_data, trans==2)))
+```
+
+Again, the x-axis needs to be truncated to better observe the models.
+
+```{r}
+ecsgR::ggkm(survfit(Surv(Tstart, Tstop, status) ~ strata(data), data=subset(tot_data, trans==2))) + xlim(0, 5e3)
+```
+
+This model looks a better fit, with the simulated data following a similar trajectory to the observed.
+
+### Platelet recovery to death
+
+Another rescaling is required here:
+
+```{r}
+ecsgR::ggkm(survfit(Surv(Tstart, Tstop, status) ~ strata(data), data=subset(tot_data, trans==3)))
+```
+
+```{r}
+ecsgR::ggkm(survfit(Surv(Tstart, Tstop, status) ~ strata(data), data=subset(tot_data, trans==3))) + xlim(0, 5e3)
+```
+
+Again, this model looks a better fit than the initial -> platelet recovery one.
+
+## Model comparison
+
+The actual modelling is carried out by the standard Cox PH estimator from the `survival` package and can be facilitated now that the data is correctly formatted. For both data sets I'll make the same assumptions:
+
+  1. The process is a Markov model, i.e. all information regarding a process' history can be summarised by its current state
+  2. Each transition has a different baseline hazard
+  
+I'll firstly look at the smaller model whereby the covariates have the same effect on all transitions:
+
+### Covariates having same effect on every transition
+
+```{r}
+coxph(Surv(Tstart, Tstop, status) ~ age + disease + strata(trans), data=actual_long_covs)
+```
+
+```{r}
+coxph(Surv(Tstart, Tstop, status) ~ age + disease + strata(trans), data=sim_long_covs)
+```
+
+The hazard ratios are very similar for both models, with the p-values indicating the same variables are statistically significant, even if the actual coefficients differ. For example, `age20-40` is deemed to have a negative impact on hazard on the real data set, while the effect is slightly positive in the simulated data set. However, in both cases, the p-value is not significant.
+
+### Independent covariate effects
+
+The following models allow the covariates to have transition-specific hazards.
+
+```{r}
+coxph(Surv(Tstart, Tstop, status) ~ age.40.1 + age.40.2 + age.40.3 + 
+                                    age20.40.1 + age20.40.2 + age20.40.3 +
+                                    diseaseAML.1 + diseaseAML.2 + diseaseAML.3 +
+                                    diseaseCML.1 + diseaseCML.2 + diseaseCML.3 +
+                                    strata(trans), data=actual_long_covs)
+```
+
+```{r}
+coxph(Surv(Tstart, Tstop, status) ~ age.40.1 + age.40.2 + age.40.3 + 
+                                    age20.40.1 + age20.40.2 + age20.40.3 +
+                                    diseaseAML.1 + diseaseAML.2 + diseaseAML.3 +
+                                    diseaseCML.1 + diseaseCML.2 + diseaseCML.3 +
+                                    strata(trans), data=sim_long_covs)
+```
+
+There are more differences between these two models than was suggested by the comparison of models using transition-independent covariates. For example, briefly just looking at statistical significance we can observe the following discrepencies:
+
+  - `age20.40.2` isn't significant at the 5% level for the actual data set (although $p=0.58$) but is for the simulated by a large margin
+  - `diseaseAML.2` is nearly significant at the 5% level for the actual data set ($p=0.054$) but is far from significant for the simulated data set
+  - `diseaseAML.3` isn't significant at the 5% level for the actual data set but is for the simulated data set by a large amount (at 1% level)
+  - `diseaseCML.2` is nearly significant at the 5% level for the actual data set ($p=0.051$) but isn't for the simulated data set
+  
+This appears to suggest a slight discrepency in the modelling of transition 2 (initial state straight to death) since there are 3 slight discrepencies in this state. Note that if we're using the strict binary interpretation of a p-value (which we should really) then two of these 'discrepencies' aren't that.
+
+In terms of hazard direction and effect size, the models tend to agree. The only disagreement on direction is on `diseaseCML.3`, which isn't a statistically significant covariate anyway. The magnitude of the hazard ratios appear to be in the same order of magnitude and are relatively similar.
+
+# Conclusions
+
+To my eye, the Discrete Event Simulation appears to have accurately modelled the `ebmct3` data set owing to the relatively minimal differences between the hazard ratios of the covariates for both. The Kaplan-Meier plots do present a slightly contrary perspective, particularly for transition 1, however. This is exacerbated by the problem of 'immortal' patients from the parameteric distributions used in the modelling of the transition time.
+
+I'd appreciate Simon's perspective on this before I proceed with the DES software more, however. Also note that these results are just taken from a single run of the simulation, when I really should run several (order of magnitude of thousands) simulations, fit models to each output data set and take the mean coefficient values to be used here.
+
+# Environment
+
+```{r}
+sessionInfo()
+```
