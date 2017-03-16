@@ -194,25 +194,40 @@ shinyServer(function(input, output, session) {
         gsub("\\]", "", raw1)
 
     }
-
-    create_eventtime_draw <- function(dist, params) {
-        # Dist: A string that fits in the entries of the DISTS list
+    
+    calculate_parameters <- function(params, newdata) {
         # Params: A vector of parameter specifications in string format, i.e.:
         # 'exp(3 + 0.25 * [age] + 0.43 * [sex])'
-        force(params)
-        force(dist)
-        func <- DISTS[[dist]]$draw
-        force(func)
+        # Newdata: A data frame containing the attributes that may be referred to in
+        # raw_params
+        # Returns the numeric values of the distribution parameters as a data frame with
+        # e #events rows and p #params columns
         # Calculate parameters from new data
         new_params <- sapply(params, function(p) gsub("\\[", "newdata\\[\\['", p))
         new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
         new_params <- sapply(new_params, function(p) parse(text=p))
-        function(n, newdata) {
-            # Evaluate parameters from data
-            param_vals <- sapply(new_params, function(p) eval(p))
+        param_vals <- sapply(new_params, function(p) eval(p))
+        params_df <- data.frame(param_vals) 
+        colnames(params_df) <- paste0('p', seq(ncol(params_df)))
+        params_df
+    }
 
+    create_eventtime_draw <- function(dist) {
+        # Dist: A string that fits in the entries of the DISTS list
+        # Params: A vector of parameter specifications in string format, i.e.:
+        # 'exp(3 + 0.25 * [age] + 0.43 * [sex])'
+        #force(params)
+        force(dist)
+        func <- DISTS[[dist]]$draw
+        force(func)
+        # Calculate parameters from new data
+        #new_params <- sapply(params, function(p) gsub("\\[", "newdata\\[\\['", p))
+        #new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
+        #new_params <- sapply(new_params, function(p) parse(text=p))
+        
+        function(n, params) {
             # Draw from distribution
-            func(n, param_vals)
+            func(n, params)
         }
     }
 
@@ -1022,7 +1037,7 @@ shinyServer(function(input, output, session) {
         winning_dist <- TIME_DISTS[best_mod]
         winning_mod <- mods[[best_mod]]
         params_str <- create_param_string_from_mod(DISTS[[winning_dist]], winning_mod, cat_vars)
-        transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist, params=params_str)
+        transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist)
         transitions[[trans_name]]$params <- params_str
         transitions[[trans_name]]$dist <- winning_dist
 
@@ -1167,8 +1182,8 @@ shinyServer(function(input, output, session) {
                     next_state = 1,
                     id = id,
                     time = time,
-                    attributes = attributes,
-                    next_transition = NULL # These get filled out later on
+                    attributes = attributes
+                    #next_transition = NULL # These get filled out later on
                     )
         class(obj) <- c(class(obj), 'event')
         obj
@@ -1335,33 +1350,30 @@ shinyServer(function(input, output, session) {
         }
 
     }
+    
+    determine_next_transition <- function(current_state, id, params) {
+        # Determines the next transition for a given id in a given state
+        # This is calculated as the minimum of the next possible event times
+        
+        # TODO Have this calculated at the start of the simulation. All possible transitions
+        # from a given state
+        trans <- reactiveValuesToList(transitions)
+        trans <- trans[vapply(trans, function(t) t$from == current_state && !is.null(t$draw), logical(1))]
+        
+        if (length(trans) == 0)
+            return(NULL)
+        
+        times <- vapply(names(trans), function(t_) trans[[t_]]$draw(1, t(params[[t_]][id, ])), numeric(1))
+        
+        #times <- sapply(trans, function(t) t$draw(1, params=this_params))
+        # Obtain next event as next time
+        next_time <- which.min(times)
+        # Return the next state and its time
+        c(times[next_time], trans[[next_time]]$to)
+        
+    }
 
     # Function that runs when an event occurs. Creates the subsequent event and returns it
-    process_event <- function(event) {
-        # Create new event as copy of old
-        new_event <- event
-        # update current state
-        new_event$curr_state <- event$next_state
-        # Update history
-        new_event$history <- rbind(new_event$history, c(event$next_state, event$time))
-        # determine next state and time
-        next_trans <- event$next_transition()
-
-        # If in an absorbant state, return state as it is
-        if (is.null(next_trans)) {
-            return(new_event)
-        }
-
-        # update next state and time (time will be current time + time to next event)
-        new_event$time <- next_trans[1] + event$time
-        new_event$next_state <- next_trans[2]
-        # set next_transition
-        new_event$next_transition <- create_next_transition(new_event$next_state, new_event$attributes)
-
-        new_event
-
-    }
-    
     termination_time <- function(max_time) {
         function(eventlist) {
             # If have empty list or the next value is greater than the limit then terminate
@@ -1376,6 +1388,15 @@ shinyServer(function(input, output, session) {
     run_simulation <- function() {
         # Create initial event_list
         event_list <- setup_eventlist()
+        
+        newdata <- bind_rows(lapply(event_list, function(e) e$attributes))
+        
+        # Create transition probabilities
+        all_parameters <- lapply(reactiveValuesToList(transitions), function(t) {
+            calculate_parameters(t$params, newdata)
+        })
+        
+        
         if (length(event_list) == 0) {
             message("Error in configuring event list. Please confirm all parameters are correct.") 
             return()
@@ -1396,7 +1417,7 @@ shinyServer(function(input, output, session) {
         # Peak at top of list and see time of next event
         while (!end_simulation(event_list)) {
             # Processes event on top of event_list and updates both lists
-            new_state <- run_timestep(event_list, absorbant_list)
+            new_state <- run_timestep(event_list, absorbant_list, all_parameters)
             event_list <- new_state[[1]]
             absorbant_list <- new_state[[2]]
         }
@@ -1451,13 +1472,42 @@ shinyServer(function(input, output, session) {
         })
 
         # Create functions to determine the next event for each of these
-        for (i in seq_along(new_events)) {
-            new_events[[i]]$next_transition <- create_next_transition(new_events[[i]]$next_state, new_events[[i]]$attributes)
-        }
+        #for (i in seq_along(new_events)) {
+        #    new_events[[i]]$next_transition <- create_next_transition(new_events[[i]]$next_state, new_events[[i]]$attributes)
+        #}
         new_events
     }
+    
+    process_event <- function(event, params) {
+        # Create new event as copy of old
+        new_event <- event
+        # update current state
+        new_event$curr_state <- event$next_state
+        # Update history
+        new_event$history <- rbind(new_event$history, c(event$next_state, event$time))
+        
+        # determine next state and time
+        # TODO CHANGED
+        next_trans <- determine_next_transition(new_event$curr_state, new_event$id, params)
+       # next_trans <- event$next_transition()
 
-    run_timestep <- function(event_list, absorbant_list) {
+        # If in an absorbant state, return state as it is
+        if (is.null(next_trans)) {
+            return(new_event)
+        }
+
+        # update next state and time (time will be current time + time to next event)
+        new_event$time <- next_trans[1] + event$time
+        new_event$next_state <- next_trans[2]
+        # set next_transition
+        new_event$next_transition <- create_next_transition(new_event$next_state, new_event$attributes)
+
+        new_event
+
+    }
+    
+
+    run_timestep <- function(event_list, absorbant_list, transition_params) {
         nevent_list <- event_list
         nabsorbant_list <- absorbant_list
 
@@ -1467,12 +1517,12 @@ shinyServer(function(input, output, session) {
         curr_time <- curr_event$time
 
         # Process the current event to obtain its next transition
-        new_event <- process_event(curr_event)
+        new_event <- process_event(curr_event, transition_params)
 
         # If not in an absorbant state and have a next transition then add to queue
         if (new_event$time > curr_time) {
             # Insert new_event into appropriate place
-            times <- sapply(nevent_list, function(e) e$time)
+            times <- vapply(nevent_list, function(e) e$time, numeric(1))
             # -1 as append below is the index AFTER which to insert value at
             new_index <- if (length(times) == 0 || new_event$time < min(times)) {
                             0
