@@ -70,7 +70,7 @@ shinyUI(fluidPage(
                              uiOutput("termcriteriadiv"),
                              hr(),
                              sliderInput("simslider", "Number of simulations", min=1, max=10000, value=1000),
-                             actionButton("runmultiplesimbutton", "Run simulation multiple times"),
+                             actionButton("runmultiplesimbutton", "Run simulation(s)"),
                              uiOutput("savebuttons")
                              #textInput('simname', 'Simulation Name'),
                              #downloadButton("savemodel")
