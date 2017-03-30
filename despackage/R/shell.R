@@ -1,9 +1,9 @@
 #Rcpp.package.skeleton("despackage", example_code=FALSE, cpp_files=c('src/des.cpp'))
 
-run_simulation <- function(params) {
-    ret <- .Call("desCpp", params, package="foo")
-    return(ret)
-}
+#run_simulation <- function(params) {
+#    ret <- .Call("desCpp", params, package="despackage")
+#    return(ret)
+#}
 
 # Create dummy values for testing simulation
 transitions <- list(list(name='weibull',
@@ -22,5 +22,4 @@ trans_mat[is.na(trans_mat)] <- 0
 
 desCpp(transitions, trans_mat)
 
-                    
-            
+

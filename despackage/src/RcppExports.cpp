@@ -5,25 +5,15 @@
 
 using namespace Rcpp;
 
-// timesTwo
-NumericVector timesTwo(NumericVector x);
-RcppExport SEXP despackage_timesTwo(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(timesTwo(x));
-    return rcpp_result_gen;
-END_RCPP
-}
 // desCpp
-LogicalVector desCpp(SEXP params);
-RcppExport SEXP despackage_desCpp(SEXP paramsSEXP) {
+bool desCpp(List transitions, IntegerMatrix transmat);
+RcppExport SEXP despackage_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type params(paramsSEXP);
-    rcpp_result_gen = Rcpp::wrap(desCpp(params));
+    Rcpp::traits::input_parameter< List >::type transitions(transitionsSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type transmat(transmatSEXP);
+    rcpp_result_gen = Rcpp::wrap(desCpp(transitions, transmat));
     return rcpp_result_gen;
 END_RCPP
 }
