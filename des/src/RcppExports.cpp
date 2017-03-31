@@ -6,14 +6,15 @@
 using namespace Rcpp;
 
 // desCpp
-bool desCpp(List transitions, IntegerMatrix transmat);
-RcppExport SEXP des_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP) {
+bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times);
+RcppExport SEXP des_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP, SEXP initial_timesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type transitions(transitionsSEXP);
     Rcpp::traits::input_parameter< IntegerMatrix >::type transmat(transmatSEXP);
-    rcpp_result_gen = Rcpp::wrap(desCpp(transitions, transmat));
+    Rcpp::traits::input_parameter< NumericVector >::type initial_times(initial_timesSEXP);
+    rcpp_result_gen = Rcpp::wrap(desCpp(transitions, transmat, initial_times));
     return rcpp_result_gen;
 END_RCPP
 }

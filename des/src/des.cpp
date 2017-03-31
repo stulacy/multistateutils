@@ -1,14 +1,16 @@
 #include <Rcpp.h>
 #include <limits.h>
+#include <utility>
+
 #include "transitions.h"
 #include "state.h"
 #include "event.h"
 #include "simulation.h"
+
 using namespace Rcpp;
 
-
 // [[Rcpp::export]]
-bool desCpp(List transitions, IntegerMatrix transmat) {
+bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
     std::cout << transmat << "\n";
 
     int nstates;
@@ -16,12 +18,15 @@ bool desCpp(List transitions, IntegerMatrix transmat) {
     List this_trans;
     std::string trans_name;
     NumericMatrix trans_params;
+    Simulation* sim;
 
     nstates = transmat.nrow();
     std::vector<State*> state_objects(nstates);
+    std::vector<float> init_times = as<std::vector<float> > (initial_times);
 
 
-    // TODO Put into separate function
+
+    // TODO Put into separate function. Maybe in Simulation constructor?
     for (int source=0; source < nstates; source++) {
         // Instantiate new state object
         state_objects[source] = new State(source);
@@ -42,13 +47,17 @@ bool desCpp(List transitions, IntegerMatrix transmat) {
         }
     }
 
-    // Quickly summarise data
-    for (std::vector<State*>::iterator it = state_objects.begin(); it != state_objects.end(); ++it) {
-        std::cout << "\nOn state: " << (*it)->num << " and is transient = : " << (*it)->is_transient() << "\n\n";
-        if ((*it)->is_transient()) {
-            std::pair<int, float> next_trans = (*it)->get_next_transition(17);
-            std::cout << "Next state and time for patient with id 17: " << next_trans.first << "," << next_trans.second << "\n";
-        }
+    sim = new Simulation(state_objects, init_times);
+    sim->run();
+
+    // Display summary
+    std::vector<std::tuple<int, int, float>>::iterator it;
+    std::vector<std::tuple<int, int, float>> history = sim->get_history();
+
+    std::cout << "id\tstate\ttime\n";
+    for (it = history.begin(); it != history.end(); ++it) {
+        std::cout << std::get<0>(*it) << "\t" << std::get<1>(*it) << "\t" << std::get<2>(*it) << "\n";
+
     }
 
     return(true);

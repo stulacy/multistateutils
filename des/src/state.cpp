@@ -27,12 +27,9 @@ std::pair<int, float> State::get_next_transition(int id) {
         // Iterate over all transitions and obtain the event time
         for (std::vector<Transition*>::iterator it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
             this_event_time = (*it)->draw_event_time(id);
-            std::cout << "Drawn event time: " << this_event_time << "\n";
             if (this_event_time < lowest_event_time) {
                 lowest_event_time = this_event_time;
-                std::cout << "This is new lowest event time \n";
                 winning_state = (*it)->to;
-                std::cout << "Set winning state to: " << winning_state << "\n";
             }
 
         }
