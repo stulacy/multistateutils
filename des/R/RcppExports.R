@@ -2,6 +2,6 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 desCpp <- function(transitions, transmat) {
-    .Call('despackage_desCpp', PACKAGE = 'despackage', transitions, transmat)
+    .Call('des_desCpp', PACKAGE = 'des', transitions, transmat)
 }
 

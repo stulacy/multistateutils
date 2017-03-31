@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // desCpp
 bool desCpp(List transitions, IntegerMatrix transmat);
-RcppExport SEXP despackage_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP) {
+RcppExport SEXP des_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
