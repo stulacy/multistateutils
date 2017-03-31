@@ -1,5 +1,3 @@
-#Rcpp.package.skeleton("despackage", example_code=FALSE, cpp_files=c('src/des.cpp'))
-
 #run_simulation <- function(params) {
 #    ret <- .Call("desCpp", params, package="despackage")
 #    return(ret)
@@ -10,7 +8,7 @@ transitions <- list(list(name='weibull',
                          params = matrix(c(abs(rnorm(20)), abs(rnorm(20, mean=5))), nrow=20)
                          ),
                     list(name='lognorm',
-                         params = matrix(c(p1=abs(rnorm(20)), p2=abs(rnorm(20, mean=8))), nrow=20)
+                         params = matrix(c(abs(rnorm(20)), abs(rnorm(20, mean=8))), nrow=20)
                     ),
                     list(name='exp',
                          params=matrix(abs(rnorm(20)), nrow=20)

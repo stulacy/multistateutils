@@ -1,52 +1,122 @@
 #include <Rcpp.h>
+#include <limits.h>
+#include <queue>
 using namespace Rcpp;
 
 class Transition {
     public:
-        static Transition *create_transition(std::string const& dist, int from, int to);
-        virtual float draw_event_time(int id);
-        Transition(int from, int to): from(from), to(to) {};
+        Transition(std::string const& name, int to, NumericMatrix params): name(name), to(to), params(params) {};
+        static Transition *create_transition(std::string const& dist, int to, NumericMatrix params);
+        float draw_event_time(int id) const;
+        virtual float draw(NumericMatrix::ConstRow row) const = 0;
 
-        // What data structure is appropriate for params?
-    protected:
-        int from;
-        int to;
-        int params;
+        const std::string name;
+        const int to;
+        const NumericMatrix params;
 };
+
+float Transition::draw_event_time(int id) const {
+    return draw(params(id, _));
+}
 
 class WeibullTransition: public Transition {
     using Transition::Transition;
     public:
-        float draw_event_time(int id) {
-        // TODO Obtain params
-
-        //rweibull(1, params);
-
-        return(2.2);
-    }
+        float draw(NumericMatrix::ConstRow) const;
 };
 
 class LogNormalTransition: public Transition {
     using Transition::Transition;
     public:
-        float draw_event_time(int id) {
-        // TODO Obtain params
-
-        //rlognorm(1, params);
-
-        return(2.2);
-    }
+        float draw(NumericMatrix::ConstRow row) const;
 };
 
+class ExpTransition: public Transition {
+    using Transition::Transition;
+    public:
+        float draw(NumericMatrix::ConstRow row) const;
+};
 
+float WeibullTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<float>(rweibull(1, row[1], row[0]));
+}
 
-Transition *Transition::create_transition(std::string const& dist, int from, int to) {
+float LogNormalTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<float>(rlnorm(1, row[0], row[1]));
+}
+
+float ExpTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<float>(rexp(1, row[0]));
+}
+
+Transition *Transition::create_transition(std::string const& dist, int to, NumericMatrix params) {
     if (dist == "weibull") {
-        return new WeibullTransition(from, to);
+        return new WeibullTransition(dist, to, params);
     } else if (dist == "lognorm") {
-        return new LogNormalTransition(from, to);
+        return new LogNormalTransition(dist, to, params);
+    } else if (dist == "exp") {
+        return new ExpTransition(dist, to, params);
     } else {
-        return new Transition(from, to);
+        // TODO Should raise error instead
+        std::cout << "Error: Distribution choice '" << dist << "' not found in options. \n";
+
+        return new WeibullTransition(dist, to, params);
+    }
+
+}
+
+class State {
+    public:
+        const int num;
+        State(int num): num(num) {};
+        std::pair<int, float> get_next_transition(int);
+        void add_transition(Transition*);
+        bool is_transient() const;
+
+    private:
+        std::vector<Transition*> outgoing_transitions;
+};
+
+void State::add_transition(Transition* transition) {
+    outgoing_transitions.push_back(transition);
+    return;
+}
+
+bool State::is_transient() const {
+    return (outgoing_transitions.size() > 0);
+}
+
+std::pair<int, float> State::get_next_transition(int id) {
+    if (is_transient()) {
+        int winning_state;
+        float lowest_event_time;
+        float this_event_time;
+
+        lowest_event_time = INT_MAX; // TODO Anyway to avoid these defaults? Just to stop compiler warning that may never reach these values
+        winning_state = -1;
+
+        // Iterate over all transitions and obtain the event time
+        for (std::vector<Transition*>::iterator it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
+            this_event_time = (*it)->draw_event_time(id);
+            std::cout << "Drawn event time: " << this_event_time << "\n";
+            if (this_event_time < lowest_event_time) {
+                lowest_event_time = this_event_time;
+                std::cout << "This is new lowest event time \n";
+                winning_state = (*it)->to;
+                std::cout << "Set winning state to: " << winning_state << "\n";
+            }
+
+        }
+
+        if (winning_state == -1) {
+            // TODO Should raise error here
+            std::cout << "Error: didn't find next state \n";
+        }
+        return std::pair<int, float> (winning_state, lowest_event_time);
+    } else {
+        // TODO This should really raise an error instead
+        std::cout << "Error: Asked to get next transition for a sink state \n";
+        return std::pair<int, float> (0, 0);
     }
 
 }
@@ -62,54 +132,97 @@ bool desCpp(List transitions, IntegerMatrix transmat) {
     NumericMatrix trans_params;
 
     nstates = transmat.nrow();
+    std::vector<State*> state_objects(nstates);
 
-    std::cout << "Num states: " << nstates << "\n";
-    // Find all transitions in matrix
-    for (int i=0; i < nstates; i++) {
-        for (int j=0; j < nstates; j++) {
-            cell = transmat(i, j);
-            if (cell == 0) {
+
+    // TODO Put into separate function
+    for (int source=0; source < nstates; source++) {
+        // Instantiate new state object
+        state_objects[source] = new State(source);
+
+        for (int dest=0; dest < nstates; dest++) {
+            cell = transmat(source, dest);
+            if (cell == 0) { // No transition is indicated by 0 in transition matrix
                 continue;
             }
-            std::cout << cell << "\n";
 
             // Subset transitions list to obtain this transition
             this_trans = as<List>(transitions[cell-1]); // Remember to convert to 0-index
-
             trans_name  = as<std::string>(this_trans["name"]);
-            std::cout << "Name: " << trans_name << "\n";
+            trans_params = as<NumericMatrix>(this_trans["params"]);
 
-            // TODO Instantiate transitions object
-            //Transition* trans = Transition::create_transition(trans_name, 5, 3);
-
+            // Add this transition to the current states available ones
+            state_objects[source]->add_transition(Transition::create_transition(trans_name, dest, trans_params));
         }
     }
+
+    // Quickly summarise data
+    for (std::vector<State*>::iterator it = state_objects.begin(); it != state_objects.end(); ++it) {
+        std::cout << "\nOn state: " << (*it)->num << " and is transient = : " << (*it)->is_transient() << "\n\n";
+        if ((*it)->is_transient()) {
+            std::pair<int, float> next_trans = (*it)->get_next_transition(17);
+            std::cout << "Next state and time for patient with id 17: " << next_trans.first << "," << next_trans.second << "\n";
+        }
+
+
+    }
+
+    // For each source state create a new
     return(true);
 }
 
-//class simulation {
-//    public:
-//        simulation(): time(0), eventQueue() {}
-//
-//        void run();
-//        void scheduleEvent(event * newEvent) {
-//            eventQueue.push(newEvent);
-//        }
-//        unsigned int time;
-//
-//    protected:
-//        std::priority_queue<event*,
-//                            std::vector<event *, std::allocator<event*>>,
-//                            eventComparator> eventQueue;
-//};
-//
-//void simulation::run() {
-//    while (! eventQueue.empty()) {
-//        event * nextEvent = eventQueue.top();
-//        eventQueue.pop();
-//        time = nextEvent->time;
-//        nextEvent->processEvent();
-//        delete nextEvent;
-//    }
-//}
+class Event {
+
+    public:
+        Event(int state, float time): state_entering(state), time(time) {}
+        const int state_entering;
+        const float time;
+        void processEvent(Simulation* sim);
+
+
+
+};
+
+class Simulation {
+    public:
+        Simulation(): time(0), eventQueue() {}
+
+        void run();
+        void scheduleEvent(Event * newEvent) {
+            eventQueue.push(newEvent);
+        }
+        unsigned int time;
+
+    protected:
+        std::priority_queue<Event*, std::vector<Event *>, CompareTimes> eventQueue;
+};
+
+
+
+void Event::processEvent(Simulation* sim) {
+    // TODO Fill out
+
+    // Add record of transition (time and state entering) to simulation
+
+    // If entering non-transient state
+        // determine next transition
+        // Add this to simulation event queue
+}
+
+struct CompareTimes {
+    bool operator() (const Event *left, const Event* right) const {
+        return left-> time > right-> time;
+    }
+};
+
+
+void Simulation::run() {
+    while (! eventQueue.empty()) {
+        Event * nextEvent = eventQueue.top();
+        eventQueue.pop();
+        time = nextEvent->time;
+        nextEvent->processEvent();
+        delete nextEvent;
+    }
+}
 
