@@ -81,6 +81,15 @@ output$seltrans <- renderUI({
     do.call(tagList, item_list)
 })
 
+Q <- reactive({
+    this_states <- states()
+    mat <- matrix(NA, length(this_states), length(this_states), dimnames=list(this_states, this_states))
+    for (i in names(transitions)) {
+        mat[transitions[[i]]$from, transitions[[i]]$to] <- transitions[[i]]$index
+    }
+    mat
+})
+
 output$addtransbutton <- renderUI({
     if (is.null(states()))
         return()
@@ -119,10 +128,10 @@ output$statedia <- renderGrViz({
         edge_vals <- sapply(reactiveValuesToList(transitions), function(x) x$index)
 
         states_dot <- paste("node [shape=circle] ", paste0(states(), collapse=";"))
-        edges_dot <- paste(
-                           mapply(function(e, v)
-                                 paste(e, "[label='", v, "']"), edges, edge_vals),
-                           collapse=" \n ")
+        edges_dot <- paste(edges, "[penwidth=2]", collapse='\n')
+                 #          mapply(function(e, v)
+                 #                paste(e, "[label='", v, "']"), edges, edge_vals),
+                 #          collapse=" \n ")
 
         full <- paste("digraph states {", states_dot, edges_dot, "}")
         grViz(full)

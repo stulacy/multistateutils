@@ -9,6 +9,7 @@ library(flexsurv)
 library(parallel)
 library(jsonlite)
 library(profvis)
+library(des)
 
 ui <- navbarPage("Discrete Event Simulation",
                  source(file.path("ui", "loaddata.R"), local=T)$value,

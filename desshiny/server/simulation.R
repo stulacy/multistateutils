@@ -1,5 +1,31 @@
 curr_time_reactive <- reactiveValues(curr_time=0, next_time=0)
 
+run_simulation_cpp <- function() {
+
+    trans_mat <- Q()
+    trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
+
+    # Obtain entry times and attributes for incident individuals
+    initial_times <- setup_eventlist_cpp()
+    n_inds <- length(initial_times)
+    raw_attrs <- data.frame(lapply(reactiveValuesToList(attributes), function(x) x$draw(n_inds)))
+    new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric))
+
+    # Obtain parameters for each distriubtion for each individual
+    transition_list <- lapply(reactiveValuesToList(transitions), function(t) {
+        list(name=DISTS[[t$dist]]$flex,
+             params=as.matrix(calculate_parameters(t$params, new_data))
+        )
+    })
+
+    raw_mat <- desCpp(transition_list, trans_mat, initial_times)
+    history <- data.frame(raw_mat)
+    colnames(history) <- c('id', 'state', 'time')
+    history$id <- as.integer(history$id)
+    history$state <- as.integer(history$state)
+    history
+}
+
 create_event <- function(id, time, attributes) {
     obj <- list(history=data.frame(state=NULL, entry_time=NULL),
                 curr_state = -1,
@@ -29,15 +55,18 @@ output$timedisplay <- renderTable({
     if (is.null(res))
         return(NULL)
 
-    num_states <- length(states())
-    num_in_states <- sapply(res, function(sim) {
-        colSums(sapply(seq(3), function(state) {
-            sapply(sim, function(ind) ind$curr_state == state)
-        } ))
-    })
-    mean_num_in_states <- rowMeans(num_in_states)
+    # TODO Get this summary correctly printing again!
 
-    data.frame(state=seq(num_states), num=mean_num_in_states)
+    #num_states <- length(states())
+    #num_in_states <- sapply(res, function(sim) {
+    #    colSums(sapply(seq(3), function(state) {
+    #        sapply(sim, function(ind) ind$curr_state == state)
+    #    } ))
+    #})
+    #mean_num_in_states <- rowMeans(num_in_states)
+#
+    #data.frame(state=seq(num_states), num=mean_num_in_states)
+    res
 })
 
 output$savebuttons <- renderUI({
@@ -94,6 +123,8 @@ output$saveresults <- downloadHandler(
     filename = function() {
         paste0(input$simulationname, '_results.csv')
     },
+
+    # TODO Get this working with rcpp implementation!
     content = function(file) {
         res <- simoutput()
         num_states <- length(states())
@@ -302,6 +333,44 @@ setup_eventlist <- function() {
     new_events
 }
 
+setup_eventlist_cpp <- function() {
+    entryrate <- tryCatch(entryrate <- as.numeric(input$entryrate),
+                          warning=function(w) {
+                                 message("Error: Please provide a numeric value for entry rate.")
+                                 return(NULL)
+                          })
+    termcriteria <- tryCatch(as.numeric(input$termcriteriavalue),
+                             warning=function(w) {
+                                 message("Error: Please provide a numeric value for termination criteria.")
+                                 return(NULL)
+                             })
+
+    if (is.null(entryrate) || is.null(termcriteria))
+        return()
+
+    if (input$terminationcriteria == "Time limit") {
+        # If specify time limit then number of individuals is rate * time limit, plus an error margin
+        initial_n <- ERROR_MARGIN * (entryrate * termcriteria)
+    } else if (input$terminationcriteria == "Number of individuals") {
+        # Otherwise can specify number of individuals directly
+        initial_n <- termcriteria
+    } else {
+        message(paste0("Error: Unknown termination criteria option '", input$terminationcriteria, "'."))
+    }
+
+    entry_times <- cumsum(rexp(initial_n, entryrate))
+    # Remove values which are above maximum time if using one
+    if (input$terminationcriteria == "Time limit") {
+        entry_times <- entry_times[entry_times < termcriteria]
+    }
+    n_inds <- length(entry_times)
+
+    if (n_inds == 0)
+        return(NULL)
+
+    entry_times
+}
+
 process_event <- function(event, params) {
     # Create new event as copy of old
     new_event <- event
@@ -374,15 +443,13 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
         print(system.time({
             platform <- .Platform$OS.type
 
-            # TODO PROFILE CODE
-            #Rprof("profile.txt", interval=0.1)
+            # TODO Changed from CPP to R implementation
             if (platform == "unix" && n_sims > 1) {
-                end_states <- mclapply(seq(n_sims), function(i) run_simulation(),
+                end_states <- mclapply(seq(n_sims), function(i) run_simulation_cpp(),
                                        mc.cores=4)
             } else {
-                end_states <- lapply(seq(n_sims), function(i) run_simulation())
+                end_states <- lapply(seq(n_sims), function(i) run_simulation_cpp())
             }
-            #Rprof(NULL)
         }))
     })
     end_states

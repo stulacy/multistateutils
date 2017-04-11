@@ -7,7 +7,7 @@ tabPanel("Simulation",
                          choices=c("Select one"="", "Time limit", "Number of individuals")),
              uiOutput("termcriteriadiv"),
              hr(),
-             sliderInput("simslider", "Number of simulations", min=1, max=10000, value=1000),
+             sliderInput("simslider", "Number of simulations", min=1, max=10000, value=1),
              actionButton("runmultiplesimbutton", "Run simulation(s)"),
              uiOutput("savebuttons")
          ),
