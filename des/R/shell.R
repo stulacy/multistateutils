@@ -22,6 +22,8 @@ trans_mat <- mstate::trans.illdeath()
 trans_mat[is.na(trans_mat)] <- 0
 initial_times <- cumsum(rexp(n, rate=0.01))
 
-#desCpp(transitions, trans_mat, initial_times)
+#foo <- desCpp(transitions, trans_mat, initial_times)
+
+
 
 

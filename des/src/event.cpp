@@ -16,7 +16,7 @@ void Event::processEvent(Simulation* sim) {
 
     // If entering non-transient state
     next_state = sim->get_state(state_entering);
-    std::cout << "Processing individual " << individual_id << " in state " << state_entering << " at time " << time << "\n";
+    //std::cout << "Processing individual " << individual_id << " in state " << state_entering << " at time " << time << "\n";
 
     if (next_state->is_transient()) {
         // determine next transition
@@ -28,7 +28,7 @@ void Event::processEvent(Simulation* sim) {
         // Add this to simulation event queue
         sim->add_event(new_event);
 
-        std::cout << "Just added new event with attributes:" << individual_id << ", " << next_transition.first << ", " << next_transition.second << " to the simulation queue \n";
-        std::cout << "Next event time is: " << sim->get_next_event_time() << "\n";
+        //std::cout << "Just added new event with attributes:" << individual_id << ", " << next_transition.first << ", " << next_transition.second << " to the simulation queue \n";
+        //std::cout << "Next event time is: " << sim->get_next_event_time() << "\n";
     }
 }
