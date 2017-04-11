@@ -10,8 +10,8 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
-    std::cout << transmat << "\n";
+NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
+    //std::cout << transmat << "\n";
 
     int nstates;
     int cell;
@@ -50,16 +50,14 @@ bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_time
     sim = new Simulation(state_objects, init_times);
     sim->run();
 
-    // Display summary
-    std::vector<std::tuple<int, int, float>>::iterator it;
     std::vector<std::tuple<int, int, float>> history = sim->get_history();
+    NumericMatrix hist_mat(history.size(), 3);
 
-    std::cout << "id\tstate\ttime\n";
-    for (it = history.begin(); it != history.end(); ++it) {
-        std::cout << std::get<0>(*it) << "\t" << std::get<1>(*it) << "\t" << std::get<2>(*it) << "\n";
-
+    for (std::size_t i = 0; i != history.size(); ++i) {
+        hist_mat(i, 0) = std::get<0>(history[i]);
+        hist_mat(i, 1) = std::get<1>(history[i]);
+        hist_mat(i, 2) = std::get<2>(history[i]);
     }
-
-    return(true);
+    return(hist_mat);
 }
 

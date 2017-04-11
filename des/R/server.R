@@ -13,6 +13,13 @@ library(profvis)
 # Remove when finished debugging
 #options(shiny.fullstacktrace=T)
 
+run_simulation <- function(transitions, transmat, initial_times) {
+    raw_mat <- .Call('des_desCpp', PACKAGE = 'des', transitions, transmat, initial_times)
+    history <- data.frame(raw_mat)
+    colnames(history) <- c('id', 'state', 'time')
+    history
+}
+
 shinyServer(function(input, output, session) {
 
     transitions <- reactiveValues()
@@ -194,7 +201,7 @@ shinyServer(function(input, output, session) {
         gsub("\\]", "", raw1)
 
     }
-    
+
     calculate_parameters <- function(params, newdata) {
         # Params: A vector of parameter specifications in string format, i.e.:
         # 'exp(3 + 0.25 * [age] + 0.43 * [sex])'
@@ -207,7 +214,7 @@ shinyServer(function(input, output, session) {
         new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
         new_params <- sapply(new_params, function(p) parse(text=p))
         param_vals <- sapply(new_params, function(p) eval(p))
-        params_df <- data.frame(param_vals) 
+        params_df <- data.frame(param_vals)
         colnames(params_df) <- paste0('p', seq(ncol(params_df)))
         params_df
     }
@@ -224,7 +231,7 @@ shinyServer(function(input, output, session) {
         #new_params <- sapply(params, function(p) gsub("\\[", "newdata\\[\\['", p))
         #new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
         #new_params <- sapply(new_params, function(p) parse(text=p))
-        
+
         function(n, params) {
             # Draw from distribution
             func(n, params)
@@ -1189,22 +1196,22 @@ shinyServer(function(input, output, session) {
         obj
     }
     ERROR_MARGIN <- 1.25
-    
+
     output$termcriteriadiv <- renderUI({
         method <- input$terminationcriteria
         if (is.null(method)) {
             return(NULL)
         }
-        
+
         textInput("termcriteriavalue", "Value of termination criteria", value=method)
     })
 
     output$timedisplay <- renderTable({
         res <- simoutput()
-        
-        if (is.null(res)) 
+
+        if (is.null(res))
             return(NULL)
-        
+
         num_states <- length(states())
         num_in_states <- sapply(res, function(sim) {
             colSums(sapply(seq(3), function(state) {
@@ -1212,16 +1219,16 @@ shinyServer(function(input, output, session) {
             } ))
         })
         mean_num_in_states <- rowMeans(num_in_states)
-        
+
         data.frame(state=seq(num_states), num=mean_num_in_states)
     })
-    
+
     output$savebuttons <- renderUI({
         res <- simoutput()
-        
-        if (is.null(res)) 
+
+        if (is.null(res))
             return(NULL)
-        
+
         fluidRow(
             hr(),
             textInput("simulationname", "Simulation name"),
@@ -1229,7 +1236,7 @@ shinyServer(function(input, output, session) {
             downloadButton("saveresults", "Save results")
         )
     })
-    
+
     output$savemodel <- downloadHandler(
         filename = function() {
             paste0(input$simulationname, '_model.json')
@@ -1245,15 +1252,15 @@ shinyServer(function(input, output, session) {
                'simulation_parameters' = list('termination_criteria'=input$terminationcriteria,
                                               'termination_value'=input$termcriteriavalue,
                                               'entry_rate'=input$entryrate)
-            ) 
+            )
             write(toJSON(output), file)
         }
     )
-    
+
     # TODO This method currently only produces wide formatted CSVs, where each state is either visited or not.
     # This doesn't allow for recurrent visits to states, even though my DES model allows this to happen.
-    # I should really change the output of the DES to better reflect this, rather than forcing it into the 
-    # wide mstate CSV method. 
+    # I should really change the output of the DES to better reflect this, rather than forcing it into the
+    # wide mstate CSV method.
     #
     # Maybe just return a long data frame with a row referring to a transitions with the following columns:
     #   - sim number
@@ -1261,7 +1268,7 @@ shinyServer(function(input, output, session) {
     #   - time
     #   - start state
     #   - end state
-    # 
+    #
     # I could then write wrappers to convert it to mstate style wide tables, or long mstate transition tables
     # But essentially, since there are so many possibilities of what the user would want to do with the
     # simulation results, it's probably better to provide it as raw as possible and let them do the manual
@@ -1286,9 +1293,9 @@ shinyServer(function(input, output, session) {
                     # Determine patient individual attributes
                     event <- res[[sim_num]][[event_num]]
                     attrs <- c(event_num, unlist(event$attributes))
-                    
+
                     in_absorbtive_state <- event$curr_state == event$next_state
-                    
+
                     # Determine state transition times and censoring values
                     event_occured <- sapply(seq(num_states), function(s) s %in% event$history[, 1])
                     states_occured <- seq(num_states)[event_occured]
@@ -1303,25 +1310,25 @@ shinyServer(function(input, output, session) {
                 })
             full_output <- as.data.frame(data.table::rbindlist(full_output, idcol='sim_num', use.names=TRUE))
             num_cols <- ncol(full_output)
-            state_names <- c(sapply(states(), function(s) c(paste0(s, '.time'), paste0(s, '.status')))) 
-            
+            state_names <- c(sapply(states(), function(s) c(paste0(s, '.time'), paste0(s, '.status'))))
+
             colnames(full_output)[(num_cols - num_states*2 + 1) : num_cols] <- state_names
             colnames(full_output)[2] <- 'event_id'
-            
+
             # Format attributes into long format
             cat_attrs <- names(attributes)[sapply(names(attributes), function(a) attributes[[a]]$type == 'Categorical')]
             cont_attrs <- names(attributes)[sapply(names(attributes), function(a) attributes[[a]]$type == 'Continuous')]
             cat_levels <- setNames(lapply(cat_attrs, function(a) paste(a, attributes[[a]]$levels, sep='.')), cat_attrs)
-            
+
             # Obtain factor value of categorical attributes
             cat_long <- apply(full_output, 1, function(row) {
                             setNames(lapply(cat_attrs, function(a) attributes[[a]]$levels[row[cat_levels[[a]]]==1]),
                                      cat_attrs)
                         })
-            
+
             full_output <- full_output[, !(names(full_output) %in% unlist(cat_levels))] # Drop wide categorical variables
             full_output <- cbind(full_output, bind_rows(cat_long)) # Add long categorical variables
-            
+
             # Reorder columns
             full_output <- full_output[, c('sim_num', 'event_id', cont_attrs, cat_attrs, state_names)]
             write.csv(full_output, file, quote=F, row.names = F)
@@ -1350,27 +1357,27 @@ shinyServer(function(input, output, session) {
         }
 
     }
-    
+
     determine_next_transition <- function(current_state, id, params) {
         # Determines the next transition for a given id in a given state
         # This is calculated as the minimum of the next possible event times
-        
+
         # TODO Have this calculated at the start of the simulation. All possible transitions
         # from a given state
         trans <- reactiveValuesToList(transitions)
         trans <- trans[vapply(trans, function(t) t$from == current_state && !is.null(t$draw), logical(1))]
-        
+
         if (length(trans) == 0)
             return(NULL)
-        
+
         times <- vapply(names(trans), function(t_) trans[[t_]]$draw(1, t(params[[t_]][id, ])), numeric(1))
-        
+
         #times <- sapply(trans, function(t) t$draw(1, params=this_params))
         # Obtain next event as next time
         next_time <- which.min(times)
         # Return the next state and its time
         c(times[next_time], trans[[next_time]]$to)
-        
+
     }
 
     # Function that runs when an event occurs. Creates the subsequent event and returns it
@@ -1380,7 +1387,7 @@ shinyServer(function(input, output, session) {
             !((length(eventlist) >= 1) && (eventlist[[1]]$time <= max_time))
         }
     }
-    
+
     termination_individuals <- function(eventlist) {
         length(eventlist) < 1
     }
@@ -1388,27 +1395,27 @@ shinyServer(function(input, output, session) {
     run_simulation <- function() {
         # Create initial event_list
         event_list <- setup_eventlist()
-        
+
         newdata <- bind_rows(lapply(event_list, function(e) e$attributes))
-        
+
         # Create transition probabilities
         all_parameters <- lapply(reactiveValuesToList(transitions), function(t) {
             calculate_parameters(t$params, newdata)
         })
-        
-        
+
+
         if (length(event_list) == 0) {
-            message("Error in configuring event list. Please confirm all parameters are correct.") 
+            message("Error in configuring event list. Please confirm all parameters are correct.")
             return()
         }
         absorbant_list <- list()
-        
-        
+
+
         # Setup termination criteria
         if (input$terminationcriteria == "Time limit") {
             end_simulation <- termination_time(as.numeric(input$termcriteriavalue))
         } else if (input$terminationcriteria == "Number of individuals") {
-            end_simulation <- termination_individuals 
+            end_simulation <- termination_individuals
         } else {
             message(paste0("Error: Unknown termination criteria option '", input$terminationcriteria, "'."))
             return()
@@ -1435,10 +1442,10 @@ shinyServer(function(input, output, session) {
                                      message("Error: Please provide a numeric value for termination criteria.")
                                      return(NULL)
                                  })
-        
+
         if (is.null(entryrate) || is.null(termcriteria))
             return()
-        
+
         if (input$terminationcriteria == "Time limit") {
             # If specify time limit then number of individuals is rate * time limit, plus an error margin
             initial_n <- ERROR_MARGIN * (entryrate * termcriteria)
@@ -1448,14 +1455,14 @@ shinyServer(function(input, output, session) {
         } else {
             message(paste0("Error: Unknown termination criteria option '", input$terminationcriteria, "'."))
         }
-        
+
         entry_times <- cumsum(rexp(initial_n, entryrate))
         # Remove values which are above maximum time if using one
         if (input$terminationcriteria == "Time limit") {
             entry_times <- entry_times[entry_times < termcriteria]
         }
         n_inds <- length(entry_times)
-        
+
         if (n_inds == 0)
             return(NULL)
 
@@ -1477,7 +1484,7 @@ shinyServer(function(input, output, session) {
         #}
         new_events
     }
-    
+
     process_event <- function(event, params) {
         # Create new event as copy of old
         new_event <- event
@@ -1485,7 +1492,7 @@ shinyServer(function(input, output, session) {
         new_event$curr_state <- event$next_state
         # Update history
         new_event$history <- rbind(new_event$history, c(event$next_state, event$time))
-        
+
         # determine next state and time
         # TODO CHANGED
         next_trans <- determine_next_transition(new_event$curr_state, new_event$id, params)
@@ -1505,7 +1512,7 @@ shinyServer(function(input, output, session) {
         new_event
 
     }
-    
+
 
     run_timestep <- function(event_list, absorbant_list, transition_params) {
         nevent_list <- event_list
@@ -1549,7 +1556,7 @@ shinyServer(function(input, output, session) {
         withProgress(message="Simulating...", value=0, {
             print(system.time({
                 platform <- .Platform$OS.type
-                
+
                 # TODO PROFILE CODE
                 #Rprof("profile.txt", interval=0.1)
                 if (platform == "unix" && n_sims > 1) {
