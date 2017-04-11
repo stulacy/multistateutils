@@ -28,6 +28,24 @@ class LogNormalTransition: public Transition {
         float draw(NumericMatrix::ConstRow row) const;
 };
 
+class LogLogisticTransition: public Transition {
+    using Transition::Transition;
+    public:
+        float draw(NumericMatrix::ConstRow row) const;
+};
+
+class GammaTransition: public Transition {
+    using Transition::Transition;
+    public:
+        float draw(NumericMatrix::ConstRow row) const;
+};
+
+class GompertzTransition: public Transition {
+    using Transition::Transition;
+    public:
+        float draw(NumericMatrix::ConstRow row) const;
+};
+
 class ExpTransition: public Transition {
     using Transition::Transition;
     public:
