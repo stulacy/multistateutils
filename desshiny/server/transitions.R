@@ -166,7 +166,6 @@ observeEvent(input$transprobbutton, {
 
     # Confirm have covariate names in attributes list
     attr_names <- get_attr_names(params)
-
     attrs <- allowed_attrs()
 
     # See if have any categorical variables without all levels specified
@@ -181,7 +180,7 @@ observeEvent(input$transprobbutton, {
     }
 
     else {
-        transitions[[trans_name]]$draw <- create_eventtime_draw(dist, params=params)
+        transitions[[trans_name]]$draw <- create_eventtime_draw(dist)
         transitions[[trans_name]]$params <- params
         transitions[[trans_name]]$dist <- dist
         # Reset the parameter specification area in preparation for next transition
@@ -241,10 +240,16 @@ observeEvent(input$estimateparamsbutton, {
                 filter(trans == trans_index)
 
     form <- paste0("Surv(Tstart, Tstop, status) ~ ", paste(covars, collapse='+'))
+    num_dists <- length(TIME_DISTS)
 
     # Iterate through each distribution and build model
     withProgress(message="Fitting models...", value=0, {
-        mods <- lapply(TIME_DISTS, function(d) {
+
+        # TODO Update progress
+        mods <- lapply(seq_along(TIME_DISTS), function(i) {
+            d <- TIME_DISTS[[i]]
+            incProgress(i/num_dists, detail=paste("Building", d, "model..."))
+
             tryCatch(withCallingHandlers(suppressWarnings(flexsurvreg(as.formula(form), data=data, dist=DISTS[[d]]$flex))),
                      error=function(e) NULL
                      )
