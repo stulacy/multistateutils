@@ -13,7 +13,7 @@ tabPanel("Simulation",
          ),
          mainPanel(
              h3("Run simulation"),
-             uiOutput("timedisplay")
+             uiOutput("simendstates")
          )
     )
 )
