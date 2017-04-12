@@ -35,6 +35,11 @@ states <- reactive({
     }
 })
 
+sink_states <- reactive({
+    trans_mat <- Q()
+    row.names(trans_mat)[apply(trans_mat, 1, function(x) all(is.na(x)))]
+})
+
 # TODO Have remove button for each state
 
 # TODO Remove transitions from states which don't exist
@@ -109,29 +114,28 @@ output$currtransheader <- renderUI({
 })
 
 output$currtrans <- renderTable({
-    from <- sapply(reactiveValuesToList(transitions), function(x) states()[x$from])
-    to <- sapply(reactiveValuesToList(transitions), function(x) states()[x$to])
+    this_trans <- reactiveValuesToList(transitions)
+    this_states <- states()
+    from <- sapply(this_trans, function(x) this_states[x$from])
+    to <- sapply(this_trans, function(x) this_states[x$to])
     data.frame(From=from, To=to)
 })
 
 
 output$statedia <- renderGrViz({
 
-    if (is.null(states())) {
+    this_states <- states()
+
+    if (is.null(this_states)) {
       return()
     }
 
     input$addtrans
 
     isolate({
-        edges <- sapply(reactiveValuesToList(transitions), function(x) paste(states()[x$from], states()[x$to], sep=" -> "))
-        edge_vals <- sapply(reactiveValuesToList(transitions), function(x) x$index)
-
-        states_dot <- paste("node [shape=circle] ", paste0(states(), collapse=";"))
-        edges_dot <- paste(edges, "[penwidth=2]", collapse='\n')
-                 #          mapply(function(e, v)
-                 #                paste(e, "[label='", v, "']"), edges, edge_vals),
-                 #          collapse=" \n ")
+        states_dot <- paste0("node [shape=circle, penwidth=2] ", paste0(this_states, collapse=";"), ";")
+        edges <- sapply(reactiveValuesToList(transitions), function(x) paste(this_states[x$from], this_states[x$to], sep=" -> "))
+        edges_dot <- if (length(edges) > 0) paste(edges, "[penwidth=2]", collapse='\n') else ""
 
         full <- paste("digraph states {", states_dot, edges_dot, "}")
         grViz(full)
