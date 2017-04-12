@@ -197,17 +197,9 @@ calculate_parameters <- function(params, newdata) {
 
 create_eventtime_draw <- function(dist) {
     # Dist: A string that fits in the entries of the DISTS list
-    # Params: A vector of parameter specifications in string format, i.e.:
-    # 'exp(3 + 0.25 * [age] + 0.43 * [sex])'
-    #force(params)
     force(dist)
     func <- DISTS[[dist]]$draw
     force(func)
-    # Calculate parameters from new data
-    #new_params <- sapply(params, function(p) gsub("\\[", "newdata\\[\\['", p))
-    #new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
-    #new_params <- sapply(new_params, function(p) parse(text=p))
-
     function(n, params) {
         # Draw from distribution
         func(n, params)
