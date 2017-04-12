@@ -75,10 +75,11 @@ newdata <- eventReactive(input$updatenewdata, {
 
 
 output$plottingeventdraws <- renderPlot({
-    if (length(reactiveValuesToList(transitions)) < 1)
+    vars <- reactiveValuesToList(transitions)
+    if (length(vars) < 1)
         return()
 
-    if (sum(sapply(reactiveValuesToList(transitions), function(t) !is.null(t$draw))) < 1)
+    if (sum(sapply(vars, function(t) !is.null(t$draw))) < 1)
         return()
 
     newdf <- newdata()
@@ -88,14 +89,12 @@ output$plottingeventdraws <- renderPlot({
 
     # Convert raw string input to numeric data frame (including dummy variables for categorical attributes)
     newdf_numeric <- convert_stringdata_to_numeric(newdf)
-
-    vars <- reactiveValuesToList(transitions)
     vars <- vars[!sapply(vars, function(v) is.null(v$draw))]  # Only include transitions with a specified draw method
-
     labels <- sapply(vars, function(t) paste(states()[t$from], states()[t$to], sep='-'))
 
     plots <- lapply(vars, function(v) {
-        vals <- v$draw(NUM_TIMES_DRAWS_PREVIEW, newdata=newdf_numeric)
+        params <- t(calculate_parameters(v$params, newdf_numeric))
+        vals <- v$draw(NUM_TIMES_DRAWS_PREVIEW, params)
         ggplot(data.frame(x=vals), aes(x=x)) +
                 geom_histogram(fill='white', colour='black') +
                 theme_bw()
