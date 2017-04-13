@@ -46,22 +46,40 @@ output$simendstates <- renderUI({
     if (is.null(res))
         return(NULL)
 
-    # Returns a K x N matrix where N = # sims and K = # states indicating number of individuals ending in each state
-    num_states <- length(states())
-    sim_end_states <- sapply(res, function(sim) {
-             end_states <- sim %>% group_by(id) %>% summarise(end_state = state[which.max(time)])
-             end_states_table <- table(end_states$end_state)
-             foo <- sapply(seq(num_states), function(state) {
-                 if (is.na(end_states_table[as.character(state)])) 0 else end_states_table[as.character(state)]
-             })
-             foo
-    })
-    mean_num_in_states <- rowMeans(sim_end_states)
+    isolate({
 
-    item_list <- list(h4("Average state occupancy"),
-                      renderTable(data.frame(state=states(), num=mean_num_in_states))
-    )
-    do.call(tagList, item_list)
+        withProgress(message="Summarising simulation...", value=0.3, {
+
+            # Returns a K x N matrix where N = # sims and K = # states indicating number of individuals ending in each state
+            num_states <- length(states())
+            sim_end_states <- sapply(res, function(sim) {
+
+                # TODO DEBUG WHY THIS IS SOMETIMES NULL
+                #browser()
+
+                 if (input$terminationcriteria == "Time limit") {
+                     sim <- filter(sim, time < as.numeric(input$termcriteriavalue))
+                 }
+                 end_states <- sim %>%
+                             group_by(id) %>%
+                             summarise(end_state = state[which.max(time)])
+                 end_states_table <- table(end_states$end_state)
+
+                 # This checks for states with zero occupancy
+                 corrected_missing <- sapply(seq(num_states), function(state) {
+                     if (is.na(end_states_table[as.character(state-1)])) 0 else end_states_table[as.character(state-1)] # Convert from 0 based index
+                 })
+                 corrected_missing
+            })
+
+            mean_num_in_states <- rowMeans(sim_end_states)
+
+            item_list <- list(h4("Average state occupancy"),
+                              renderTable(data.frame(state=states(), num=mean_num_in_states))
+            )
+            do.call(tagList, item_list)
+        })
+    })
 })
 
 output$savebuttons <- renderUI({
@@ -119,63 +137,68 @@ output$saveresults <- downloadHandler(
         paste0(input$simulationname, '_results.csv')
     },
 
-    # TODO Get this working with rcpp implementation!
     content = function(file) {
         res <- simoutput()
-        this_states <- states()
+        n_sims <- length(res)
 
-        num_states <- length(this_states)
-        sinks <- sink_states()
-        state_time_cols <- paste(this_states, 'time', sep='.')
+        withProgress(message="Collating results", value=0, max=n_sims, {
 
-        full_output_raw <- lapply(res, function(sim) {
-            with_times <- sim %>%
-                            mutate(state_lab = this_states[state+1]) %>%
-                            select(-state) %>%
-                            spread(key=state_lab, value=time)
+            this_states <- states()
 
-            # Censor all times greater than max sim time if using a time limit
-            if (input$terminationcriteria == "Time limit") {
-            with_times <- with_times %>%
-                            gather_("state", "time", this_states) %>%
-                            mutate(time=ifelse(time >= input$termcriteriavalue, NA, time)) %>%
-                            spread(state, time)
-            }
+            num_states <- length(this_states)
+            sinks <- sink_states()
+            state_time_cols <- paste(this_states, 'time', sep='.')
 
-            # Add status for censoring
-            with_status <- with_times %>%
-                gather_("state", "time", this_states) %>%
-                mutate(status=as.numeric(!is.na(time))) %>%
-                gather_("variable", "value", c('time', 'status')) %>%
-                unite(temp, state, variable, sep='.') %>%
-                spread(temp, value)
+            full_output_raw <- lapply(seq(n_sims), function(i) {
+                incProgress(1, detail=paste("simulation", i))
 
-            # Determine censoring times for any unobserved state entries. These are individual-specific
-            apply(with_status, 1, function(row) {
-                sink_reached <- sapply(sinks, function(state) row[[paste(state, 'status', sep='.')]] == 1)
-                if (any(sink_reached)) {
-                    # Should only be only sink reached, but have max just in case
-                    censor_time <- max(sapply(sinks[sink_reached], function(state) row[[paste(state, 'time', sep='.')]]))
-                } else {
-                    if (input$terminationcriteria == 'Time limit') {
-                        censor_time <- input$termcriteriavalue
-                    } else {
-                        censor_time <- max(sim$time)
-                    }
+                sim <- res[[i]]
+                with_times <- sim %>%
+                                mutate(state_lab = this_states[state+1]) %>%
+                                select(-state) %>%
+                                spread(key=state_lab, value=time)
+
+                # Censor all times greater than max sim time if using a time limit
+                if (input$terminationcriteria == "Time limit") {
+                with_times <- with_times %>%
+                                gather_("state", "time", this_states) %>%
+                                mutate(time=ifelse(time >= as.numeric(input$termcriteriavalue), NA, time)) %>%
+                                spread(state, time)
                 }
 
-                # Set any censored state entries to the appropriate time
-                row[is.na(row)] <- censor_time
-                row
+                # Add status for censoring
+                with_status <- with_times %>%
+                    gather_("state", "time", this_states) %>%
+                    mutate(status=as.numeric(!is.na(time))) %>%
+                    gather_("variable", "value", c('time', 'status')) %>%
+                    unite(temp, state, variable, sep='.') %>%
+                    spread(temp, value)
+
+                # Determine censoring times for any unobserved state entries. These are individual-specific
+                apply(with_status, 1, function(row) {
+                    sink_reached <- sapply(sinks, function(state) row[[paste(state, 'status', sep='.')]] == 1)
+                    if (any(sink_reached)) {
+                        # Should only be only sink reached, but have max just in case
+                        censor_time <- max(sapply(sinks[sink_reached], function(state) row[[paste(state, 'time', sep='.')]]))
+                    } else {
+                        if (input$terminationcriteria == 'Time limit') {
+                            censor_time <- as.numeric(input$termcriteriavalue)
+                        } else {
+                            censor_time <- max(sim$time)
+                        }
+                    }
+
+                    # Set any censored state entries to the appropriate time
+                    row[is.na(row)] <- censor_time
+                    row
+                })
             })
+
+            full_output <- lapply(full_output_raw, function(df) as.data.frame(t(df)))
+
+            full_output_comb <- as.data.frame(data.table::rbindlist(full_output, idcol='sim_num', use.names=TRUE))
+            write.csv(full_output_comb, file, quote=F, row.names = F)
         })
-
-        full_output <- lapply(full_output_raw, function(df) as.data.frame(t(df)))
-
-        browser()
-
-        full_output_comb <- as.data.frame(data.table::rbindlist(full_output, idcol='sim_num', use.names=TRUE))
-        write.csv(full_output_comb, file, quote=F, row.names = F)
     }
 )
 
@@ -219,18 +242,23 @@ setup_eventlist_cpp <- function() {
 
 simoutput <- eventReactive(input$runmultiplesimbutton, {
     n_sims <- input$simslider
-    withProgress(message="Simulating...", value=0, {
-        print(system.time({
-            platform <- .Platform$OS.type
+    platform <- .Platform$OS.type
 
-            # TODO Changed from CPP to R implementation
+    withProgress(message="Running simulations", value=0, max=n_sims, {
+        #print(system.time({
             if (platform == "unix" && n_sims > 1) {
-                end_states <- mclapply(seq(n_sims), function(i) run_simulation_cpp(),
-                                       mc.cores=4)
+                end_states <- mclapply(seq(n_sims), function(i) {
+                        incProgress(1, detail=paste(i))
+                        run_simulation_cpp()
+                    },
+                    mc.cores=4)
             } else {
-                end_states <- lapply(seq(n_sims), function(i) run_simulation_cpp())
+                end_states <- lapply(seq(n_sims), function(i) {
+                        incProgress(1, detail=paste(i))
+                        run_simulation_cpp()
+                    })
             }
-        }))
+        #}))
     })
     end_states
 })

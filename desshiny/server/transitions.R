@@ -243,12 +243,12 @@ observeEvent(input$estimateparamsbutton, {
     num_dists <- length(TIME_DISTS)
 
     # Iterate through each distribution and build model
-    withProgress(message="Fitting models...", value=0, {
+    withProgress(message="Fitting models", value=0, max=num_dists, {
 
         # TODO Update progress
-        mods <- lapply(seq_along(TIME_DISTS), function(i) {
+        mods <- lapply(seq(num_dists), function(i) {
             d <- TIME_DISTS[[i]]
-            incProgress(i/num_dists, detail=paste("Building", d, "model..."))
+            incProgress(1, detail=paste(d))
 
             tryCatch(withCallingHandlers(suppressWarnings(flexsurvreg(as.formula(form), data=data, dist=DISTS[[d]]$flex))),
                      error=function(e) NULL
