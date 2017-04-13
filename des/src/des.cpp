@@ -54,6 +54,12 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
         hist_mat(i, 1) = std::get<1>(history[i]);
         hist_mat(i, 2) = std::get<2>(history[i]);
     }
+
+    if (Rf_isNull(hist_mat)) {
+        Rcpp::Rcout << "NULL history matrix!!" << "\n";
+    }
+
+    // TODO check if NULL and print in case it is
     return(hist_mat);
 }
 
