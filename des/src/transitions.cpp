@@ -44,7 +44,7 @@ Transition *Transition::create_transition(std::string const& dist, int to, Numer
         return new ExpTransition(dist, to, params);
     } else {
         // TODO Should raise error instead
-        std::cout << "Error: Distribution choice '" << dist << "' not found in options. \n";
+        Rcpp::Rcout << "Error: Distribution choice '" << dist << "' not found in options. \n";
 
         return new WeibullTransition(dist, to, params);
     }

@@ -11,8 +11,6 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
-    //std::cout << transmat << "\n";
-
     int nstates;
     int cell;
     List this_trans;
@@ -23,8 +21,6 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
     nstates = transmat.nrow();
     std::vector<State*> state_objects(nstates);
     std::vector<float> init_times = as<std::vector<float> > (initial_times);
-
-
 
     // TODO Put into separate function. Maybe in Simulation constructor?
     for (int source=0; source < nstates; source++) {

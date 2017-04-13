@@ -55,8 +55,6 @@ output$simendstates <- renderUI({
             sim_end_states <- sapply(res, function(sim) {
 
                 # TODO DEBUG WHY THIS IS SOMETIMES NULL
-                #browser()
-
                  if (input$terminationcriteria == "Time limit") {
                      sim <- filter(sim, time < as.numeric(input$termcriteriavalue))
                  }
