@@ -3,13 +3,13 @@
 
 #include <vector>
 #include <utility>
-
-class Transition;
+#include "transitions.h"
 
 class State {
     public:
         const int num;
         State(int num);
+        ~State(void);
         std::pair<int, float> get_next_transition(int);
         void add_transition(Transition*);
         bool is_transient() const;

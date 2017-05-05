@@ -16,7 +16,6 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
     List this_trans;
     std::string trans_name;
     NumericMatrix trans_params;
-    Simulation* sim;
 
     nstates = transmat.nrow();
     std::vector<State*> state_objects(nstates);
@@ -24,7 +23,7 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
 
     // TODO Put into separate function. Maybe in Simulation constructor?
     for (int source=0; source < nstates; source++) {
-        // Instantiate new state object
+        // Instantiate state object
         state_objects[source] = new State(source);
 
         for (int dest=0; dest < nstates; dest++) {
@@ -43,10 +42,10 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
         }
     }
 
-    sim = new Simulation(state_objects, init_times);
-    sim->run();
+    Simulation sim(state_objects, init_times);
+    sim.run();
 
-    std::vector<std::tuple<int, int, float>> history = sim->get_history();
+    std::vector<std::tuple<int, int, float>> history = sim.get_history();
     NumericMatrix hist_mat(history.size(), 3);
 
     for (std::size_t i = 0; i != history.size(); ++i) {
@@ -58,6 +57,7 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
     if (Rf_isNull(hist_mat)) {
         Rcpp::Rcout << "NULL history matrix!!" << "\n";
     }
+
 
     // TODO check if NULL and print in case it is
     return(hist_mat);

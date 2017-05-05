@@ -73,6 +73,30 @@ allowed_attrs <- reactive({
 
 })
 
+clean_parameter_string <- function(raw) {
+    raw_split <- strsplit(raw, "\\+")[[1]]
+    num_terms <- length(raw_split) - 1
+    intercept <- round(as.numeric(raw_split[1]), 2)
+
+    if (num_terms > 1) {
+        coefs <- raw_split[2:length(raw_split)]
+        coefs_clean <- sapply(coefs, function(coef) {
+            coef_split <- strsplit(coef, "\\*")[[1]]
+            val <- abs(as.numeric(coef_split[2]))
+            operator <- if (sign(val) == 1) '+' else '-'
+            sprintf("%s %.2f<b>%s</b>", operator, val, coef_split[1])
+        })
+    } else {
+        coefs_clean <- ''
+    }
+
+    coefs_clean
+
+    paste(intercept, paste(coefs_clean, collapse=' '))
+}
+
+
+
 output$transprobssummary <- renderUI({
     trans <- reactiveValuesToList(transitions)
     have_dist <- sapply(trans, function(t) !is.null(t$draw))
@@ -87,7 +111,7 @@ output$transprobssummary <- renderUI({
                    "<li>Parameters: ",
                        "<ul>",
                        paste(sapply(seq_along(DISTS[[t$dist]]$params), function(i) {
-                          paste("<li>", DISTS[[t$dist]]$params[[i]], ": ", t$params[i], "</li>")
+                          paste("<li>", DISTS[[t$dist]]$params[[i]], ": ", clean_parameter_string(t$params[i]), "</li>")
                        }), collapse=''),
                        "</ul>", # Closing parameters list
                    "</li>", # Closing Parameters item

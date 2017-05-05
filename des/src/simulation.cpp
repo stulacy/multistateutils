@@ -16,6 +16,15 @@ Simulation::Simulation(std::vector<State*> states, std::vector<float> times): st
     }
 }
 
+Simulation::~Simulation(void) {
+    for (auto it = states.begin(); it != states.end(); ++it){
+        delete *it;
+    }
+    states.clear();
+}
+
+// TODO In destructor need to delete states (events deleted in code below)
+
 void Simulation::run() {
     while (! event_queue.empty()) {
         Event * next_event = event_queue.top();

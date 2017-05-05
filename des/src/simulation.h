@@ -4,9 +4,9 @@
 #include <queue>
 #include <tuple>
 #include <vector>
+#include "state.h"
 
 class Event;
-class State;
 
 struct CompareTimes {
     bool operator() (const Event *left, const Event* right) const;
@@ -15,6 +15,7 @@ struct CompareTimes {
 class Simulation {
     public:
         Simulation(std::vector<State*>, std::vector<float>);
+        ~Simulation(void);
         void add_event(Event *);
         void add_history(std::tuple<int, int, float>);
         std::vector<std::tuple<int, int, float> > get_history();
