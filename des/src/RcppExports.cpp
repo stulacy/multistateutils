@@ -6,7 +6,7 @@
 using namespace Rcpp;
 
 // desCpp
-bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times);
+NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times);
 RcppExport SEXP des_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP, SEXP initial_timesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

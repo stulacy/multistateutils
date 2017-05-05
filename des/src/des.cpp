@@ -10,9 +10,7 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
-    std::cout << transmat << "\n";
-
+NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
     int nstates;
     int cell;
     List this_trans;
@@ -23,8 +21,6 @@ bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_time
     nstates = transmat.nrow();
     std::vector<State*> state_objects(nstates);
     std::vector<float> init_times = as<std::vector<float> > (initial_times);
-
-
 
     // TODO Put into separate function. Maybe in Simulation constructor?
     for (int source=0; source < nstates; source++) {
@@ -50,16 +46,20 @@ bool desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_time
     sim = new Simulation(state_objects, init_times);
     sim->run();
 
-    // Display summary
-    std::vector<std::tuple<int, int, float>>::iterator it;
     std::vector<std::tuple<int, int, float>> history = sim->get_history();
+    NumericMatrix hist_mat(history.size(), 3);
 
-    std::cout << "id\tstate\ttime\n";
-    for (it = history.begin(); it != history.end(); ++it) {
-        std::cout << std::get<0>(*it) << "\t" << std::get<1>(*it) << "\t" << std::get<2>(*it) << "\n";
-
+    for (std::size_t i = 0; i != history.size(); ++i) {
+        hist_mat(i, 0) = std::get<0>(history[i]);
+        hist_mat(i, 1) = std::get<1>(history[i]);
+        hist_mat(i, 2) = std::get<2>(history[i]);
     }
 
-    return(true);
+    if (Rf_isNull(hist_mat)) {
+        Rcpp::Rcout << "NULL history matrix!!" << "\n";
+    }
+
+    // TODO check if NULL and print in case it is
+    return(hist_mat);
 }
 

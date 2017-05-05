@@ -21,7 +21,6 @@ void Simulation::run() {
         Event * next_event = event_queue.top();
         event_queue.pop();
         time = next_event->time;
-        std::cout << "\nCurrent time: " << time << "\n";
         next_event->processEvent(this);
         delete next_event;
     }

@@ -36,12 +36,12 @@ std::pair<int, float> State::get_next_transition(int id) {
 
         if (winning_state == -1) {
             // TODO Should raise error here
-            std::cout << "Error: didn't find next state \n";
+            Rcpp::Rcout << "Error: didn't find next state \n";
         }
         return std::pair<int, float> (winning_state, lowest_event_time);
     } else {
         // TODO This should really raise an error instead
-        std::cout << "Error: Asked to get next transition for a sink state \n";
+        Rcpp::Rcout << "Error: Asked to get next transition for a sink state \n";
         return std::pair<int, float> (0, 0);
     }
 }
