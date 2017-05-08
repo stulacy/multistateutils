@@ -1,38 +1,3 @@
-run_simulation_cpp <- function() {
-
-    trans_mat <- Q()
-    trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
-
-    # Obtain entry times and attributes for incident individuals
-    initial_times <- setup_eventlist_cpp()
-    n_inds <- length(initial_times)
-    raw_attrs <- data.frame(lapply(reactiveValuesToList(attributes), function(x) x$draw(n_inds)))
-    new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric))
-
-    # Obtain parameters for each distribution for each individual
-    transition_list <- lapply(reactiveValuesToList(transitions), function(t) {
-        list(name=DISTS[[t$dist]]$flex,
-             params=as.matrix(calculate_parameters(t$params, new_data))
-        )
-    })
-
-    # Line that runs the simulation
-    raw_mat <- desCpp(transition_list, trans_mat, initial_times)
-
-    history <- data.frame(raw_mat)
-    colnames(history) <- c('id', 'state', 'time')
-    history$id <- as.factor(history$id + 1) # Convert back to 1-based index
-    history$state <- as.integer(history$state)
-
-    # Add patient attribute information to the results
-    raw_attrs$id <- as.factor(seq(n_inds))
-    total_results <- inner_join(history, raw_attrs, by='id')
-
-    total_results
-}
-
-ERROR_MARGIN <- 1.25
-
 output$termcriteriadiv <- renderUI({
     method <- input$terminationcriteria
     if (is.null(method)) {
@@ -201,61 +166,47 @@ output$saveresults <- downloadHandler(
     }
 )
 
-setup_eventlist_cpp <- function() {
-    entryrate <- tryCatch(entryrate <- as.numeric(input$entryrate),
-                          warning=function(w) {
-                                 message("Error: Please provide a numeric value for entry rate.")
-                                 return(NULL)
-                          })
-    termcriteria <- tryCatch(as.numeric(input$termcriteriavalue),
-                             warning=function(w) {
-                                 message("Error: Please provide a numeric value for termination criteria.")
-                                 return(NULL)
-                             })
-
-    if (is.null(entryrate) || is.null(termcriteria))
-        return()
-
-    if (input$terminationcriteria == "Time limit") {
-        # If specify time limit then number of individuals is rate * time limit, plus an error margin
-        initial_n <- ERROR_MARGIN * (entryrate * termcriteria)
-    } else if (input$terminationcriteria == "Number of individuals") {
-        # Otherwise can specify number of individuals directly
-        initial_n <- termcriteria
-    } else {
-        message(paste0("Error: Unknown termination criteria option '", input$terminationcriteria, "'."))
-    }
-
-    entry_times <- cumsum(rexp(initial_n, entryrate))
-    # Remove values which are above maximum time if using one
-    if (input$terminationcriteria == "Time limit") {
-        entry_times <- entry_times[entry_times < termcriteria]
-    }
-    n_inds <- length(entry_times)
-
-    if (n_inds == 0)
-        return(NULL)
-
-    entry_times
-}
-
 simoutput <- eventReactive(input$runmultiplesimbutton, {
     n_sims <- input$simslider
     platform <- .Platform$OS.type
+
+    # Put this in function somewhere?
+    # Guard inputs
+    entry_rate <- tryCatch(as.numeric(input$entryrate),
+                           warning=function(w) {
+                                 message("Error: Please provide a numeric value for entry rate.")
+                                 return(NULL)
+                          })
+    termination_value <- tryCatch(as.numeric(input$termcriteriavalue),
+                                  warning=function(w) {
+                                     message("Error: Please provide a numeric value for termination criteria.")
+                                     return(NULL)
+                             })
+    termination_method <- input$terminationcriteria
+    if (is.null(entry_rate) || is.null(termination_value))
+        return()
+
+    # Raw number of individuals
+    num_inds <- calculate_number_individuals(entry_rate, termination_method, termination_value)
+    censor_time <- if (termination_method == "Time limit") termination_value else NULL
+
+    # Setup transition matrix
+    trans_mat <- Q()
+    trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
 
     withProgress(message="Running simulations", value=0, max=n_sims, {
         #print(system.time({
             if (platform == "unix" && n_sims > 1e6) {
                 end_states <- mclapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
-                        sim_res <- run_simulation_cpp()
-                        sim_res
+                        run_simulation_cpp()
                     },
                     mc.cores=4)
             } else {
                 end_states <- lapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
-                        run_simulation_cpp()
+                        run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
+                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
                     })
             }
         #}))

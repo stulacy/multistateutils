@@ -88,7 +88,7 @@ output$plottingeventdraws <- renderPlot({
         return()
 
     # Convert raw string input to numeric data frame (including dummy variables for categorical attributes)
-    newdf_numeric <- convert_stringdata_to_numeric(newdf)
+    newdf_numeric <- convert_stringdata_to_numeric(newdf, reactiveValuesToList(attributes))
     vars <- vars[!sapply(vars, function(v) is.null(v$draw))]  # Only include transitions with a specified draw method
     labels <- sapply(vars, function(t) paste(states()[t$from], states()[t$to], sep='-'))
 

@@ -5,8 +5,8 @@
 
 
 # Create dummy values for testing simulation
-set.seed(3)
-num <- 10
+set.seed(22)
+num <- 2204
 transitions2 <- list(list(name='weibull',
                          params = matrix(c(abs(rnorm(num, mean=700)), abs(rnorm(num, mean=10))), nrow=num)
                          ),
@@ -22,8 +22,5 @@ trans_mat2 <- mstate::trans.illdeath()
 trans_mat2[is.na(trans_mat2)] <- 0
 initial_times2 <- cumsum(rexp(num, rate=0.01))
 
-foo <- desCpp(transitions2, trans_mat2, initial_times2)
-
-
-
+#foo <- desCpp(transitions2, trans_mat2, initial_times2)
 

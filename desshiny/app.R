@@ -20,9 +20,9 @@ ui <- navbarPage("Discrete Event Simulation",
                  source(file.path("ui", "simulation.R"), local=T)$value
 )
 
+source(file.path("server", "static.R"), local=T)$value
 
 server <- function(input, output, session) {
-                 source(file.path("server", "static.R"), local=T)$value
                  source(file.path("server", "utils.R"), local=T)$value
                  source(file.path("server", "loaddata.R"), local=T)$value
                  source(file.path("server", "states.R"), local=T)$value

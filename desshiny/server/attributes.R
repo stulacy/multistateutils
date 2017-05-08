@@ -81,7 +81,7 @@ observeEvent(input$updateselattrs, {
         is_selected <- input[[paste0('selattrcheck', attr_name)]]
         if (is_selected) {
             attributes[[attr_name]] <- list(type=all_attrs[[i]]$type,
-                                            draw=create_empirical_sample_func(attr_name),
+                                            draw=create_empirical_sample_func(attr_name, uploaded_data()),
                                             levels=all_attrs[[i]]$levels)
         } else {
             # Remove value from list if unchecked and already there
