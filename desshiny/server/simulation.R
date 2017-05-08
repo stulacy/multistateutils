@@ -28,10 +28,6 @@ run_simulation_cpp <- function() {
     raw_attrs$id <- as.factor(seq(n_inds))
     total_results <- inner_join(history, raw_attrs, by='id')
 
-    # TODO Debugging
-    if (is.null(total_results)) {
-        cat(file=stderr(), "NULL VALUE IN TOTAL RESULTS IN RUN_SIMULATION_CPP\n")
-    }
     total_results
 }
 
@@ -51,10 +47,6 @@ output$simendstates <- renderUI({
 
     if (is.null(res))
         return(NULL)
-
-    if (any(sapply(res, is.null))) {
-        cat(file=stderr(), "A null value exists, in renderUI\n")
-    }
 
     isolate({
 
@@ -253,14 +245,10 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
 
     withProgress(message="Running simulations", value=0, max=n_sims, {
         #print(system.time({
-            if (platform == "unix" && n_sims > 1) {
+            if (platform == "unix" && n_sims > 1e6) {
                 end_states <- mclapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         sim_res <- run_simulation_cpp()
-                        # TODO DEBUGGING
-                        if (is.null(sim_res)) {
-                            cat(file=stderr(), "NULL SIMULATION IN SIMOUTPUT\n")
-                        }
                         sim_res
                     },
                     mc.cores=4)
@@ -273,8 +261,5 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
         #}))
     })
 
-    if (any(sapply(end_states, is.null))) {
-        cat(file=stderr(), "A null value exists in end_states\n")
-    }
     end_states
 })
