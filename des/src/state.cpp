@@ -2,6 +2,7 @@
 #include "transitions.h"
 #include <vector>
 #include <utility>
+#include <limits>
 
 // Constructor
 State::State(int num): num(num) {};
@@ -29,17 +30,16 @@ std::pair<int, float> State::get_next_transition(int id) {
         float lowest_event_time;
         float this_event_time;
 
-        lowest_event_time = INT_MAX; // TODO Anyway to avoid these defaults? Just to stop compiler warning that may never reach these values
+        lowest_event_time = std::numeric_limits<float>::max();
         winning_state = -1;
 
         // Iterate over all transitions and obtain the event time
-        for (std::vector<Transition*>::iterator it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
+        for (auto it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
             this_event_time = (*it)->draw_event_time(id);
             if (this_event_time < lowest_event_time) {
                 lowest_event_time = this_event_time;
                 winning_state = (*it)->to;
             }
-
         }
 
         if (winning_state == -1) {

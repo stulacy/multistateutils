@@ -5,7 +5,6 @@
 #include <vector>
 #include <iostream>
 
-// TODO Somewhere need to setup states
 Simulation::Simulation(std::vector<State*> states, std::vector<float> times): states(states), time(0), event_queue() {
     int id;
     std::vector<float>::iterator it;
@@ -22,8 +21,6 @@ Simulation::~Simulation(void) {
     }
     states.clear();
 }
-
-// TODO In destructor need to delete states (events deleted in code below)
 
 void Simulation::run() {
     while (! event_queue.empty()) {
