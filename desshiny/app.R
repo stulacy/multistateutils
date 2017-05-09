@@ -29,7 +29,7 @@ server <- function(input, output, session) {
                  source(file.path("server", "attributes.R"), local=T)$value
                  source(file.path("server", "transitions.R"), local=T)$value
                  source(file.path("server", "comparison.R"), local=T)$value
-                 source(file.path("server", "simulation.R"), local=T)$valu
+                 source(file.path("server", "simulation.R"), local=T)$value
 }
 
 shinyApp(ui=ui, server=server)

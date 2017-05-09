@@ -35,7 +35,7 @@ std::pair<int, float> State::get_next_transition(int id) {
 
         // Iterate over all transitions and obtain the event time
         for (auto it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
-            this_event_time = (*it)->draw_event_time(id);
+            this_event_time = std::max(MINIMUM_EVENT_TIME, (*it)->draw_event_time(id));
             if (this_event_time < lowest_event_time) {
                 lowest_event_time = this_event_time;
                 winning_state = (*it)->to;
@@ -49,7 +49,7 @@ std::pair<int, float> State::get_next_transition(int id) {
         return std::pair<int, float> (winning_state, lowest_event_time);
     } else {
         // TODO This should really raise an error instead
-        Rcpp::Rcout << "Error: Asked to get next transition for a sink state \n";
+        Rcpp::Rcerr << "Error: Asked to get next transition for a sink state \n";
         return std::pair<int, float> (0, 0);
     }
 }
