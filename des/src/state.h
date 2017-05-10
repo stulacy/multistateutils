@@ -5,7 +5,7 @@
 #include <utility>
 #include "transitions.h"
 
-const float MINIMUM_EVENT_TIME = 1;
+const float MINIMUM_EVENT_TIME = 1.0f;
 
 class State {
     public:

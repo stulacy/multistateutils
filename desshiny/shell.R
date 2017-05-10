@@ -5,7 +5,7 @@
 
 
 # Create dummy values for testing simulation
-set.seed(22)
+set.seed(17)
 num <- 2204
 transitions2 <- list(list(name='weibull',
                          params = matrix(c(abs(rnorm(num, mean=700)), abs(rnorm(num, mean=10))), nrow=num)
