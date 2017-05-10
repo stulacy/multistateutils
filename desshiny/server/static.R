@@ -10,6 +10,7 @@ COVAR_TYPES <- c("Individual attribute", "status", "time", "id", "other")
 DEFAULT_COVAR_TYPE <- 'Individual attribute'
 NO_COVAR_FORMULA <- '1'
 ERROR_MARGIN <- 1.25
+MIN_ENTRY_SEPARATION = 1
 
 DISTS <- list("Normal"=list(params=c("mean", "variance"),
                             short="N",
@@ -155,7 +156,9 @@ calculate_number_individuals <- function(entry_rate, termination_method, termina
 }
 
 calculate_event_times <- function(initial_n, entryrate, censor_time) {
-    entry_times <- cumsum(rexp(initial_n, entryrate))
+    inter_arrival_times <- rexp(initial_n, entryrate)
+    inter_arrival_times[inter_arrival_times < MIN_ENTRY_SEPARATION] <- MIN_ENTRY_SEPARATION
+    entry_times <- cumsum(inter_arrival_times)
 
     if (!is.null(censor_time)) {
         entry_times <- entry_times[entry_times < censor_time]
