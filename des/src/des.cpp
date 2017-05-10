@@ -19,7 +19,7 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
 
     nstates = transmat.nrow();
     std::vector<State*> state_objects(nstates);
-    std::vector<float> init_times = as<std::vector<float> > (initial_times);
+    std::vector<double> init_times = as<std::vector<double> > (initial_times);
 
     // TODO Put into separate function. Maybe in Simulation constructor?
     for (int source=0; source < nstates; source++) {
@@ -45,7 +45,7 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
     Simulation sim(state_objects, init_times);
     sim.run();
 
-    std::vector<std::tuple<int, int, float>> history = sim.get_history();
+    std::vector<std::tuple<int, int, double>> history = sim.get_history();
     NumericMatrix hist_mat(history.size(), 3);
 
     for (std::size_t i = 0; i != history.size(); ++i) {

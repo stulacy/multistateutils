@@ -5,9 +5,9 @@ class Simulation;
 
 class Event {
     public:
-        Event(int individual_id, int state, float time);
+        Event(int individual_id, int state, double time);
         const int state_entering;
-        const float time;
+        const double time;
         const int individual_id;
         void processEvent(Simulation* sim);
 };

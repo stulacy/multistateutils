@@ -14,19 +14,19 @@ struct CompareTimes {
 
 class Simulation {
     public:
-        Simulation(std::vector<State*>, std::vector<float>);
+        Simulation(std::vector<State*>, std::vector<double>);
         ~Simulation(void);
         void add_event(Event *);
-        void add_history(std::tuple<int, int, float>);
-        std::vector<std::tuple<int, int, float> > get_history();
+        void add_history(std::tuple<int, int, double>);
+        std::vector<std::tuple<int, int, double> > get_history();
         void run();
         unsigned int time;
         State* get_state(int);
-        float get_next_event_time();
+        double get_next_event_time();
 
     private:
         std::priority_queue<Event*, std::vector<Event *>, CompareTimes> event_queue;
-        std::vector<std::tuple<int, int, float> > history;
+        std::vector<std::tuple<int, int, double> > history;
         std::vector<State*> states;
 };
 

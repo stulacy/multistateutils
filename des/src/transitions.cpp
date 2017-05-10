@@ -5,27 +5,27 @@ using namespace Rcpp;
 // Constructor
 Transition::Transition(std::string const& name, int to, NumericMatrix params): name(name), to(to), params(params) {};
 
-float Transition::draw_event_time(int id) const {
+double Transition::draw_event_time(int id) const {
     return draw(params(id, _));
 }
 
-float WeibullTransition::draw(NumericMatrix::ConstRow row) const {
-    return as<float>(rweibull(1, row[1], row[0]));
+double WeibullTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<double>(rweibull(1, row[1], row[0]));
 }
-float LogNormalTransition::draw(NumericMatrix::ConstRow row) const {
-    return as<float>(rlnorm(1, row[0], row[1]));
+double LogNormalTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<double>(rlnorm(1, row[0], row[1]));
 }
-float LogLogisticTransition::draw(NumericMatrix::ConstRow row) const {
-    return as<float>(rlnorm(1, row[0], row[1]));
+double LogLogisticTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<double>(rlnorm(1, row[0], row[1]));
 }
-float GammaTransition::draw(NumericMatrix::ConstRow row) const {
-    return as<float>(rgamma(1, row[1], row[0]));
+double GammaTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<double>(rgamma(1, row[1], row[0]));
 }
-float GompertzTransition::draw(NumericMatrix::ConstRow row) const {
-    return as<float>(rlnorm(1, row[1], row[0]));
+double GompertzTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<double>(rlnorm(1, row[1], row[0]));
 }
-float ExpTransition::draw(NumericMatrix::ConstRow row) const {
-    return as<float>(rexp(1, row[0]));
+double ExpTransition::draw(NumericMatrix::ConstRow row) const {
+    return as<double>(rexp(1, row[0]));
 }
 
 // Factory method

@@ -24,13 +24,13 @@ bool State::is_transient() const {
     return (outgoing_transitions.size() > 0);
 }
 
-std::pair<int, float> State::get_next_transition(int id) {
+std::pair<int, double> State::get_next_transition(int id) {
     if (is_transient()) {
         int winning_state;
-        float lowest_event_time;
-        float this_event_time;
+        double lowest_event_time;
+        double this_event_time;
 
-        lowest_event_time = std::numeric_limits<float>::max();
+        lowest_event_time = std::numeric_limits<double>::max();
         winning_state = -1;
 
         // Iterate over all transitions and obtain the event time
@@ -46,10 +46,10 @@ std::pair<int, float> State::get_next_transition(int id) {
             // TODO Should raise error here
             Rcpp::Rcout << "Error: didn't find next state \n";
         }
-        return std::pair<int, float> (winning_state, lowest_event_time);
+        return std::pair<int, double> (winning_state, lowest_event_time);
     } else {
         // TODO This should really raise an error instead
         Rcpp::Rcerr << "Error: Asked to get next transition for a sink state \n";
-        return std::pair<int, float> (0, 0);
+        return std::pair<int, double> (0, 0);
     }
 }
