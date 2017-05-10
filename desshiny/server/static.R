@@ -116,7 +116,8 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     # Obtain entry times and attributes for incident individuals
     initial_times <- calculate_event_times(num_inds, entryrate, censor_time)
     n_inds <- length(initial_times)
-    raw_attrs <- data.frame(lapply(attributes, function(x) x$draw(n_inds)))
+    raw_attrs <- lapply(attributes, function(x) x$draw(n_inds))
+    setDT(raw_attrs)
     new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric, attributes))
 
     # Obtain parameters for each distribution for each individual
@@ -129,15 +130,16 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     # Line that runs the simulation
     raw_mat <- desCpp(transition_list, trans_mat, initial_times)
 
-    history <- data.frame(raw_mat)
-    colnames(history) <- c('id', 'state', 'time')
+    history <- data.table(raw_mat)
+    setnames(history, c('id', 'state', 'time'))
+
+    # TODO Quicker way to do these in DT?
     history$id <- as.factor(history$id + 1) # Convert back to 1-based index
     history$state <- as.integer(history$state)
-
     # Add patient attribute information to the results
     raw_attrs$id <- as.factor(seq(n_inds))
-    total_results <- inner_join(history, raw_attrs, by='id')
 
+    total_results <- history[raw_attrs, nomatch=0, on='id']
     total_results
 }
 
@@ -173,7 +175,6 @@ calculate_event_times <- function(initial_n, entryrate, censor_time) {
 
 
 setup_eventlist_cpp <- function(entryrate, termination_criteria, termination_value) {
-    # TODO Can take this outside of loop!
     if (termination_criteria == "Time limit") {
         # If specify time limit then number of individuals is rate * time limit, plus an error margin
         initial_n <- ERROR_MARGIN * (entryrate * termination_value)

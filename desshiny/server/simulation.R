@@ -17,29 +17,22 @@ output$simendstates <- renderUI({
 
         withProgress(message="Summarising simulation...", value=0.3, {
 
-            # Returns a K x N matrix where N = # sims and K = # states indicating number of individuals ending in each state
-            num_states <- length(states())
-            sim_end_states <- sapply(res, function(sim) {
+            termination_method <- input$terminationcriteria
+            censor_time <- if (termination_method == "Time limit") as.numeric(input$termcriteriavalue) else 0
+            this_states <- states()
 
-                 if (input$terminationcriteria == "Time limit") {
-                     sim <- filter(sim, time < as.numeric(input$termcriteriavalue))
-                 }
-                 end_states <- sim %>%
-                             group_by(id) %>%
-                             summarise(end_state = state[which.max(time)])
-                 end_states_table <- table(end_states$end_state)
+            full <- rbindlist(res, idcol="sim")
+             if (termination_method == "Time limit") {
+                 full <- full[ time < censor_time]
+             }
 
-                 # This checks for states with zero occupancy
-                 corrected_missing <- sapply(seq(num_states), function(state) {
-                     if (is.na(end_states_table[as.character(state-1)])) 0 else end_states_table[as.character(state-1)] # Convert from 0 based index
-                 })
-                 corrected_missing
+            end_states_table <- table(full[full[, .I[time == max(time)], by=c("sim", "id")]$V1]$state) / length(res)
+
+            corrected_missing <- sapply(seq(length(this_states)), function(state) {
+                if (is.na(end_states_table[as.character(state-1)])) 0 else end_states_table[as.character(state-1)] # Convert from 0 based index
             })
-
-            mean_num_in_states <- rowMeans(sim_end_states)
-
             item_list <- list(h4("Average state occupancy"),
-                              renderTable(data.frame(state=states(), num=mean_num_in_states))
+                              renderTable(data.frame(state=this_states, num=corrected_missing))
             )
             do.call(tagList, item_list)
         })
@@ -112,6 +105,8 @@ output$saveresults <- downloadHandler(
             num_states <- length(this_states)
             sinks <- sink_states()
             state_time_cols <- paste(this_states, 'time', sep='.')
+
+            # TODO Speed up
 
             full_output_raw <- lapply(seq(n_sims), function(i) {
                 incProgress(1, detail=paste("simulation", i))
