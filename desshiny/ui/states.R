@@ -1,0 +1,20 @@
+tabPanel("States",
+     sidebarLayout(
+         sidebarPanel(
+             h3("States"),
+             uiOutput("stateslider"),
+             uiOutput("states"),
+             actionButton("updatestates", "Update"),
+             hr(),
+             h3("Transitions"),
+             uiOutput("newtransheader"),
+             uiOutput("seltrans"),
+             uiOutput("addtransbutton"),
+             uiOutput("currtransheader"),
+             uiOutput("currtrans")
+         ),
+         mainPanel(
+             grVizOutput("statedia")
+         )
+    )
+)
