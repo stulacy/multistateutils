@@ -107,6 +107,3 @@ output$rawattrinfo <- renderUI({
     do.call(tagList, item_list)
 
 })
-
-# TODO Place restrictions on attribute types, i.e. only one transition, time, and status col
-#input$speccolsbutton

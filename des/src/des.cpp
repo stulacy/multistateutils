@@ -58,8 +58,6 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
         Rcpp::Rcout << "NULL history matrix!!" << "\n";
     }
 
-
-    // TODO check if NULL and print in case it is
     return(hist_mat);
 }
 

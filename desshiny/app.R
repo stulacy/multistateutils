@@ -8,6 +8,7 @@ if (!require(cowplot)) install.packages("cowplot")
 if (!require(flexsurv)) install.packages("flexsurv")
 if (!require(parallel)) install.packages("parallel")
 if (!require(jsonlite)) install.packages("jsonlite")
+if (!require(data.table)) install.packages("data.table")
 if (!require(profvis)) install.packages("profvis")
 require(des)
 

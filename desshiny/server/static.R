@@ -132,14 +132,12 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
 
     history <- data.table(raw_mat)
     setnames(history, c('id', 'state', 'time'))
-
-    # TODO Quicker way to do these in DT?
-    history$id <- as.factor(history$id + 1) # Convert back to 1-based index
-    history$state <- as.integer(history$state)
+    history[, c('id', 'state') := list(as.factor(id + 1),
+                                       as.integer(state))]
     # Add patient attribute information to the results
-    raw_attrs$id <- as.factor(seq(n_inds))
+    raw_attrs[, id := as.factor(seq(n_inds))]
 
-    total_results <- history[raw_attrs, nomatch=0, on='id']
+    total_results <- history[raw_attrs, nomatch=0, on='id']  # Inner join
     total_results
 }
 
@@ -207,7 +205,6 @@ convert_stringdata_to_numeric <- function(df, attrs_list) {
     for (a in names(df)) {
         # Create dummy variables for categorical
         if (attrs_list[[a]]$type == 'Categorical') {
-            # TODO Remove reference level
             # Create dummary variables
             for (l in attrs_list[[a]]$levels) {
                 newdf[[paste(a, l, sep='.')]] <- 0

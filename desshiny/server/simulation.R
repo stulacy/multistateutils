@@ -95,68 +95,55 @@ output$saveresults <- downloadHandler(
     },
 
     content = function(file) {
-        res <- simoutput()
-        n_sims <- length(res)
 
-        withProgress(message="Collating results", value=0, max=n_sims, {
+        withProgress(message="Collating results", value=0.3, {
 
+            # Setup vars needed
+            res <- simoutput()
+            n_sims <- length(res)
             this_states <- states()
+            resDT <- rbindlist(res, idcol='sim')
+            resDT$state <- this_states[resDT$state+1]
 
-            num_states <- length(this_states)
-            sinks <- sink_states()
-            state_time_cols <- paste(this_states, 'time', sep='.')
+            covars <- names(resDT)[!names(resDT) %in% c('sim', 'id', 'state', 'time')]
+            id_cols <- c('id', 'sim', covars)
+            melt_form <- as.formula(paste(paste(id_cols, collapse='+'), 'state', sep='~'))
+            termination_method <- input$terminationcriteria
+            termination_value <- as.numeric(input$termcriteriavalue)
+            censor_time <- if (termination_method == "Time limit") termination_value else max(resDT$time)
 
-            # TODO Speed up
+            # TODO What to do if have some states that are never reached?
+            # Cast to wide to get state-specific times, required to get NAs for states that aren't entered
+            resDT_wide <- dcast(resDT, melt_form, value.var='time')
+            # Add status, this is done melting back to long
+            resDT_long <- melt(resDT_wide, id.vars=id_cols,
+                               measure.vars=this_states, variable.name="state", value.name="time")
+            resDT_long[, status := as.numeric(!is.na(time))]
 
-            full_output_raw <- lapply(seq(n_sims), function(i) {
-                incProgress(1, detail=paste("simulation", i))
+            # Censor any observations above censor time
+            resDT_long[time > censor_time, c("time", "status") := list(censor_time, 0)]
 
-                sim <- res[[i]]
-                with_times <- sim %>%
-                                mutate(state_lab = this_states[state+1]) %>%
-                                select(-state) %>%
-                                spread(key=state_lab, value=time)
+            # Cast back to wide
+            resDT_complete <- dcast(resDT_long, melt_form, value.var=c("time", "status"))
 
-                # Censor all times greater than max sim time if using a time limit
-                if (input$terminationcriteria == "Time limit") {
-                with_times <- with_times %>%
-                                gather_("state", "time", this_states) %>%
-                                mutate(time=ifelse(time >= as.numeric(input$termcriteriavalue), NA, time)) %>%
-                                spread(state, time)
-                }
+            # Final step is to add in censored times for states that aren't reached
+            time_cols <- grep("time_", colnames(resDT_complete))
+            time_names <- colnames(resDT_complete)[time_cols]
+            sink_cols <- grep(paste0("status_", sink_states()), colnames(resDT_complete))
 
-                # Add status for censoring
-                with_status <- with_times %>%
-                    gather_("state", "time", this_states) %>%
-                    mutate(status=as.numeric(!is.na(time))) %>%
-                    gather_("variable", "value", c('time', 'status')) %>%
-                    unite(temp, state, variable, sep='.') %>%
-                    spread(temp, value)
+            missing_time <- resDT_complete[, Reduce(`|`, lapply(.SD, function(x) is.na(x))), .SDcols=time_cols]
+            reached_absorbtive_state <- resDT_complete[, Reduce(`|`, lapply(.SD, function(x) x == 1)), .SDcols=sink_cols] >= 1
 
-                # Determine censoring times for any unobserved state entries. These are individual-specific
-                apply(with_status, 1, function(row) {
-                    sink_reached <- sapply(sinks, function(state) row[[paste(state, 'status', sep='.')]] == 1)
-                    if (any(sink_reached)) {
-                        # Should only be only sink reached, but have max just in case
-                        censor_time <- max(sapply(sinks[sink_reached], function(state) row[[paste(state, 'time', sep='.')]]))
-                    } else {
-                        if (input$terminationcriteria == 'Time limit') {
-                            censor_time <- as.numeric(input$termcriteriavalue)
-                        } else {
-                            censor_time <- max(sim$time)
-                        }
-                    }
+            for (i in time_names) {
+                # Set non-absorbed observations to censor time
+                resDT_complete[!reached_absorbtive_state & is.na(get(i)), (i) := censor_time]
 
-                    # Set any censored state entries to the appropriate time
-                    row[is.na(row)] <- censor_time
-                    row
-                })
-            })
+                # Set observations that reached sink state to time at entry of sink state
+                resDT_complete[reached_absorbtive_state & is.na(get(i)), (i) := rowMaxs(as.matrix(.SD), na.rm=T), .SDcols=time_names]
+            }
 
-            full_output <- lapply(full_output_raw, function(df) as.data.frame(t(df)))
-
-            full_output_comb <- as.data.frame(data.table::rbindlist(full_output, idcol='sim_num', use.names=TRUE))
-            write.csv(full_output_comb, file, quote=F, row.names = F)
+            setorder(resDT_complete, sim, id)
+            write.csv(resDT_complete, file, quote=F, row.names = F)
         })
     }
 )
@@ -196,8 +183,7 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
                                            reactiveValuesToList(attributes), reactiveValuesToList(transitions))
-                    },
-                    mc.cores=4)
+                    })
             } else {
                 end_states <- lapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))

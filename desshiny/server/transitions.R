@@ -37,7 +37,7 @@ output$transprobsbuttons <- renderUI({
     to_states <- paste(c('time', 'status'), to_state, sep='.')
 
     # If source state isn't in data set (excluding starting state) then quit
-    # TODO Really should combine this into a single boolean statement but am sure
+    # Really should combine this into a single boolean statement but am sure
     # will make a mistake when making it
     if (!all(from_states %in% names(uploaded_data())) && this_trans$from != 1) {
 
