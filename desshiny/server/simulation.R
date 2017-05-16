@@ -63,6 +63,7 @@ output$savemodel <- downloadHandler(
                    list('source' = states()[t$from],
                         'target' = states()[t$to],
                         'distribution' = t$dist,
+                        'max_time' = t$max_time,
                         'parameters' = t$params)
                         }),
            'simulation_parameters' = list('termination_criteria'=input$terminationcriteria,
@@ -178,7 +179,7 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
 
     withProgress(message="Running simulations", value=0, max=n_sims, {
         #print(system.time({
-            if (platform == "unix" && n_sims > 1) {
+            if (platform == "unix" && n_sims > 1e6) {
                 end_states <- mclapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,

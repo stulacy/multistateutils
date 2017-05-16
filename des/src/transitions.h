@@ -6,14 +6,15 @@ using namespace Rcpp;
 
 class Transition {
     public:
-        Transition(std::string const& name, int to, NumericMatrix params);
-        static Transition *create_transition(std::string const& dist, int to, NumericMatrix params);
-        double draw_event_time(int id) const;
-        virtual double draw(NumericMatrix::ConstRow row) const = 0;
+        Transition(std::string const&, int, NumericMatrix, double);
+        static Transition *create_transition(std::string const&, int, NumericMatrix, double);
+        double draw_event_time(int) const;
+        virtual double draw(NumericMatrix::ConstRow) const = 0;
 
         const std::string name;
         const int to;
         const NumericMatrix params;
+        const double max_time;
 };
 
 class WeibullTransition: public Transition {

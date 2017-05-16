@@ -123,8 +123,8 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     # Obtain parameters for each distribution for each individual
     transition_list <- lapply(transitions, function(t) {
         list(name=DISTS[[t$dist]]$flex,
-             params=as.matrix(calculate_parameters(t$params, new_data))
-        )
+             params=as.matrix(calculate_parameters(t$params, new_data)),
+             max=t$max_time)
     })
 
     # Line that runs the simulation

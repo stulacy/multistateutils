@@ -3,10 +3,17 @@
 using namespace Rcpp;
 
 // Constructor
-Transition::Transition(std::string const& name, int to, NumericMatrix params): name(name), to(to), params(params) {};
+Transition::Transition(std::string const& name, int to, NumericMatrix params, double max_time):
+    name(name), to(to), params(params), max_time(max_time) {};
 
 double Transition::draw_event_time(int id) const {
-    return draw(params(id, _));
+    double drawn_time;
+
+    do {
+        drawn_time = draw(params(id, _));
+    } while (drawn_time > max_time);
+
+    return drawn_time;
 }
 
 double WeibullTransition::draw(NumericMatrix::ConstRow row) const {
@@ -29,24 +36,24 @@ double ExpTransition::draw(NumericMatrix::ConstRow row) const {
 }
 
 // Factory method
-Transition *Transition::create_transition(std::string const& dist, int to, NumericMatrix params) {
+Transition *Transition::create_transition(std::string const& dist, int to, NumericMatrix params, double max_time) {
     if (dist == "weibull") {
-        return new WeibullTransition(dist, to, params);
+        return new WeibullTransition(dist, to, params, max_time);
     } else if (dist == "lnorm") {
-        return new LogNormalTransition(dist, to, params);
+        return new LogNormalTransition(dist, to, params, max_time);
     } else if (dist == "llogis") {
-        return new LogLogisticTransition(dist, to, params);
+        return new LogLogisticTransition(dist, to, params, max_time);
     } else if (dist == "gamma") {
-        return new GammaTransition(dist, to, params);
+        return new GammaTransition(dist, to, params, max_time);
     } else if (dist == "gompertz") {
-        return new GompertzTransition(dist, to, params);
+        return new GompertzTransition(dist, to, params, max_time);
     } else if (dist == "exp") {
-        return new ExpTransition(dist, to, params);
+        return new ExpTransition(dist, to, params, max_time);
     } else {
         // TODO Should raise error instead
-        Rcpp::Rcout << "Error: Distribution choice '" << dist << "' not found in options. \n";
+        Rcpp::Rcerr << "Error: Distribution choice '" << dist << "' not found in options. \n";
 
-        return new WeibullTransition(dist, to, params);
+        return new WeibullTransition(dist, to, params, max_time);
     }
 
 }

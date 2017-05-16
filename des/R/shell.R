@@ -6,15 +6,18 @@
 
 # Create dummy values for testing simulation
 set.seed(17)
-num <- 2204
+num <- 10
 transitions2 <- list(list(name='weibull',
-                         params = matrix(c(abs(rnorm(num, mean=700)), abs(rnorm(num, mean=10))), nrow=num)
+                         params = matrix(c(abs(rnorm(num, mean=700)), abs(rnorm(num, mean=10))), nrow=num),
+                         max=500
                          ),
                     list(name='lnorm',
-                         params = matrix(c(abs(rnorm(num, mean=6)), abs(rnorm(num, mean=0.2))), nrow=num)
+                         params = matrix(c(abs(rnorm(num, mean=6)), abs(rnorm(num, mean=0.2))), nrow=num),
+                         max=600
                     ),
                     list(name='exp',
-                         params=matrix(abs(rnorm(num, mean=0.03, sd=0.0001)), nrow=num)
+                         params=matrix(abs(rnorm(num, mean=0.03, sd=0.0001)), nrow=num),
+                         max=300
                     )
 )
 

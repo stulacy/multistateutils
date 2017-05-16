@@ -15,6 +15,7 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
     int cell;
     List this_trans;
     std::string trans_name;
+    double max_time;
     NumericMatrix trans_params;
 
     nstates = transmat.nrow();
@@ -36,9 +37,10 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
             this_trans = as<List>(transitions[cell-1]); // Remember to convert to 0-index
             trans_name  = as<std::string>(this_trans["name"]);
             trans_params = as<NumericMatrix>(this_trans["params"]);
+            max_time = as<double>(this_trans["max"]);
 
             // Add this transition to the current states available ones
-            state_objects[source]->add_transition(Transition::create_transition(trans_name, dest, trans_params));
+            state_objects[source]->add_transition(Transition::create_transition(trans_name, dest, trans_params, max_time));
         }
     }
 
