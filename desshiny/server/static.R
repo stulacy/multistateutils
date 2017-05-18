@@ -123,22 +123,24 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     # Obtain parameters for each distribution for each individual
     transition_list <- lapply(transitions, function(t) {
         list(name=DISTS[[t$dist]]$flex,
-             params=as.matrix(calculate_parameters(t$params, new_data)),
+             params=as.matrix(calculate_parameters(t$params, new_data, n_inds)),
              max=t$max_time)
     })
 
     # Line that runs the simulation
-    raw_mat <- desCpp(transition_list, trans_mat, initial_times)
-
-    history <- data.table(raw_mat)
+    history <- desCpp(transition_list, trans_mat, initial_times)
+    history <- data.table(history)
     setnames(history, c('id', 'state', 'time'))
     history[, c('id', 'state') := list(as.factor(id + 1),
                                        as.integer(state))]
-    # Add patient attribute information to the results
-    raw_attrs[, id := as.factor(seq(n_inds))]
 
-    total_results <- history[raw_attrs, nomatch=0, on='id']  # Inner join
-    total_results
+    # Add patient attribute information to the results if have it
+    if (ncol(raw_attrs) > 0) {
+        raw_attrs[, id := as.factor(seq(n_inds))]
+        history <- history[raw_attrs, nomatch=0, on='id']  # Inner join in DT syntax
+    }
+    browser()
+    history
 }
 
 calculate_number_individuals <- function(entry_rate, termination_method, termination_value) {
@@ -257,11 +259,14 @@ get_attr_names <- function(str) {
 
 }
 
-calculate_parameters <- function(params, newdata) {
+calculate_parameters <- function(params, newdata, n_entries) {
     # Params: A vector of parameter specifications in string format, i.e.:
     # 'exp(3 + 0.25 * [age] + 0.43 * [sex])'
     # Newdata: A data frame containing the attributes that may be referred to in
     # raw_params
+    # n_entries: The number of people being observed in the simulation. Should be equal to
+    #   newdata, but newdata may be 0 if just the baseline survival curves are being built
+    #   so the number of individuals is explicitly provided in this case.
     # Returns the numeric values of the distribution parameters as a data frame with
     # e #events rows and p #params columns
     # Calculate parameters from new data
@@ -269,6 +274,11 @@ calculate_parameters <- function(params, newdata) {
     new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
     new_params <- sapply(new_params, function(p) parse(text=p))
     param_vals <- sapply(new_params, function(p) eval(p))
+
+    if (typeof(param_vals) != 'list') {
+        param_vals <- matrix(rep(param_vals, n_entries), ncol=length(params), byrow=T)
+    }
+
     params_df <- data.frame(param_vals)
     colnames(params_df) <- paste0('p', seq(ncol(params_df)))
     params_df

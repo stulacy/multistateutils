@@ -178,21 +178,19 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
     trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
 
     withProgress(message="Running simulations", value=0, max=n_sims, {
-        #print(system.time({
-            if (platform == "unix" && n_sims > 1e6) {
-                end_states <- mclapply(seq(n_sims), function(i) {
-                        incProgress(1, detail=paste(i))
-                        run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
-                    })
-            } else {
-                end_states <- lapply(seq(n_sims), function(i) {
-                        incProgress(1, detail=paste(i))
-                        run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
-                    })
-            }
-        #}))
+        if (platform == "unix" && n_sims > 1) {
+            end_states <- mclapply(seq(n_sims), function(i) {
+                    incProgress(1, detail=paste(i))
+                    run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
+                                       reactiveValuesToList(attributes), reactiveValuesToList(transitions))
+                })
+        } else {
+            end_states <- lapply(seq(n_sims), function(i) {
+                    incProgress(1, detail=paste(i))
+                    run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
+                                       reactiveValuesToList(attributes), reactiveValuesToList(transitions))
+                })
+        }
     })
 
     end_states

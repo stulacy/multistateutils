@@ -45,6 +45,7 @@ output$transprobsbuttons <- renderUI({
 
     } else {
         item_list[[3]] <- br()
+        # TODO Display text that "no params selected in previous tab" when want to estimate params from data and no attrs are available
         item_list[[4]] <- actionButton("paramsestimatebutton", "Estimate parameters from data")
     }
     do.call(tagList, item_list)
@@ -297,7 +298,7 @@ observeEvent(input$estimateparamsbutton, {
     winning_dist <- TIME_DISTS[best_mod]
     winning_mod <- mods[[best_mod]]
     params_str <- create_param_string_from_mod(DISTS[[winning_dist]], winning_mod, cat_vars)
-    transitions[[trans_name]]$max_time <- max(data$time[data$status==1])
+    transitions[[trans_name]]$max_time <- max(data$time)
     transitions[[trans_name]]$params <- params_str
     transitions[[trans_name]]$dist <- winning_dist
     transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist)
