@@ -8,10 +8,15 @@ Transition::Transition(std::string const& name, int to, NumericMatrix params, do
 
 double Transition::draw_event_time(int id) const {
     double drawn_time;
+    drawn_time = draw(params(id, _));
 
-    do {
-        drawn_time = draw(params(id, _));
-    } while (drawn_time > max_time);
+    //do {
+    //    drawn_time = draw(params(id, _));
+    //} while (drawn_time > max_time);
+    //drawn_time = draw(params(id, _));
+    //if (drawn_time > max_time) {
+    //    drawn_time = max_time;
+    //}
 
     return drawn_time;
 }
