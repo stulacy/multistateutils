@@ -11,6 +11,7 @@ DEFAULT_COVAR_TYPE <- 'Individual attribute'
 NO_COVAR_FORMULA <- '1'
 ERROR_MARGIN <- 1.25
 MIN_ENTRY_SEPARATION = 1
+DEATH_OLD_AGE_STATE <- "oldage"
 
 DISTS <- list("Normal"=list(params=c("mean", "variance"),
                             short="N",
