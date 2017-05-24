@@ -12,7 +12,7 @@ class State {
         const int num;
         State(int num);
         ~State(void);
-        std::pair<int, double> get_next_transition(int);
+        std::pair<int, double> get_next_transition(int, double, double);
         void add_transition(Transition*);
         bool is_transient() const;
 

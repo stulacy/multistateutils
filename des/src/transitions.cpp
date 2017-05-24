@@ -6,38 +6,33 @@ using namespace Rcpp;
 Transition::Transition(std::string const& name, int to, NumericMatrix params, double max_time):
     name(name), to(to), params(params), max_time(max_time) {};
 
-double Transition::draw_event_time(int id) const {
+double Transition::draw_event_time(int id, double time_since_start, double sojourn_time) const {
     double drawn_time;
-    drawn_time = draw(params(id, _));
-
-    //do {
-    //    drawn_time = draw(params(id, _));
-    //} while (drawn_time > max_time);
-    //drawn_time = draw(params(id, _));
-    //if (drawn_time > max_time) {
-    //    drawn_time = max_time;
-    //}
-
+    drawn_time = draw(params(id, _), time_since_start, sojourn_time);
     return drawn_time;
 }
 
-double WeibullTransition::draw(NumericMatrix::ConstRow row) const {
+double WeibullTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
     return as<double>(rweibull(1, row[1], row[0]));
 }
-double LogNormalTransition::draw(NumericMatrix::ConstRow row) const {
+double LogNormalTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
     return as<double>(rlnorm(1, row[0], row[1]));
 }
-double LogLogisticTransition::draw(NumericMatrix::ConstRow row) const {
+double LogLogisticTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
     return as<double>(rlnorm(1, row[0], row[1]));
 }
-double GammaTransition::draw(NumericMatrix::ConstRow row) const {
+double GammaTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
     return as<double>(rgamma(1, row[1], row[0]));
 }
-double GompertzTransition::draw(NumericMatrix::ConstRow row) const {
+double GompertzTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
     return as<double>(rlnorm(1, row[1], row[0]));
 }
-double ExpTransition::draw(NumericMatrix::ConstRow row) const {
+double ExpTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
     return as<double>(rexp(1, row[0]));
+}
+double OldAgeTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+    double time_to_death = 100*365.25-(row[0] + time_since_start);
+    return time_to_death;
 }
 
 // Factory method
@@ -54,6 +49,8 @@ Transition *Transition::create_transition(std::string const& dist, int to, Numer
         return new GompertzTransition(dist, to, params, max_time);
     } else if (dist == "exp") {
         return new ExpTransition(dist, to, params, max_time);
+    } else if (dist == "oldage") {
+        return new OldAgeTransition(dist, to, params, max_time);
     } else {
         // TODO Should raise error instead
         Rcpp::Rcerr << "Error: Distribution choice '" << dist << "' not found in options. \n";
