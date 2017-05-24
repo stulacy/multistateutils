@@ -112,6 +112,14 @@ output$saveresults <- downloadHandler(
             res <- simoutput()
             n_sims <- length(res)
             this_states <- states()
+            this_sinks <- sink_states()
+
+            # Add death from old age if using
+            if (!is.null(input$agelimit) && input$agelimit) {
+                this_states <- c(this_states, DEATH_OLD_AGE_STATE)
+                this_sinks <- c(this_sinks, DEATH_OLD_AGE_STATE)
+            }
+
             resDT <- rbindlist(res, idcol='sim')
             resDT$state <- this_states[resDT$state+1]
 
@@ -122,7 +130,6 @@ output$saveresults <- downloadHandler(
             termination_value <- as.numeric(input$termcriteriavalue)
             censor_time <- if (termination_method == "Time limit") termination_value else max(resDT$time)
 
-            # TODO What to do if have some states that are never reached?
             # Cast to wide to get state-specific times, required to get NAs for states that aren't entered
             resDT_wide <- dcast(resDT, melt_form, value.var='time')
             # Add status, this is done melting back to long
@@ -139,7 +146,7 @@ output$saveresults <- downloadHandler(
             # Final step is to add in censored times for states that aren't reached
             time_cols <- grep("time_", colnames(resDT_complete))
             time_names <- colnames(resDT_complete)[time_cols]
-            sink_cols <- grep(paste0("status_", sink_states()), colnames(resDT_complete))
+            sink_cols <- which(colnames(resDT_complete) %in% paste0("status_", this_sinks))
 
             missing_time <- resDT_complete[, Reduce(`|`, lapply(.SD, function(x) is.na(x))), .SDcols=time_cols]
             reached_absorbtive_state <- resDT_complete[, Reduce(`|`, lapply(.SD, function(x) x == 1)), .SDcols=sink_cols] >= 1

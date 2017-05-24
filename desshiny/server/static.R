@@ -126,13 +126,6 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     setDT(raw_attrs)
     new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric, attributes))
 
-    # Obtain parameters for each distribution for each individual
-    #transition_list <- lapply(transitions, function(t) {
-    #    list(name=DISTS[[t$dist]]$flex,
-    #         params=as.matrix(calculate_parameters(t$params, new_data, n_inds)),
-    #         max=t$max_time)
-    #})
-
     new_trans <- list()
     for (i in seq(nrow(trans_mat))) {
         for (j in seq(ncol(trans_mat))) {
