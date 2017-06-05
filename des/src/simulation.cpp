@@ -1,11 +1,42 @@
 #include "simulation.h"
 #include "event.h"
-#include <queue>
-#include <tuple>
-#include <vector>
-#include <iostream>
 
-Simulation::Simulation(std::vector<State*> states, std::vector<double> times): states(states), clock(0), event_queue() {
+Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<double> times): states(), clock(0), event_queue() {
+
+    // Create the list of states with their associated transitions
+    int nstates, cell;
+    int trans_num = 0;
+    double max_time;
+    List this_trans;
+    std::string trans_name;
+    NumericMatrix trans_params;
+
+    nstates = trans_mat.nrow();
+
+    for (int source=0; source < nstates; source++) {
+        State * this_state = new State(source);
+        for (int dest=0; dest < nstates; dest++) {
+            cell = trans_mat(source, dest);
+            if (cell == 0) { // No transition is indicated by 0 in transition matrix
+                continue;
+            }
+
+            // Have found a transition
+            this_trans = as<List>(trans_list[trans_num]);
+            ++trans_num;
+
+            trans_name  = as<std::string>(this_trans["name"]);
+            trans_params = as<NumericMatrix>(this_trans["params"]);
+            max_time = as<double>(this_trans["max"]);
+
+            // Add this transition to the current states available ones
+            this_state->add_transition(Transition::create_transition(trans_name, dest, trans_params, max_time));
+        }
+        states.push_back(this_state);
+    }
+
+
+    // Populate event list with initial entries into the system
     int id;
     std::vector<double>::iterator it;
     int first_state = 0; // assumption that everyone enters at state 0
