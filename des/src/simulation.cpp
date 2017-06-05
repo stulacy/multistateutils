@@ -6,7 +6,6 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
     // Create the list of states with their associated transitions
     int nstates, cell;
     int trans_num = 0;
-    double max_time;
     List this_trans;
     std::string trans_name;
     NumericMatrix trans_params;
@@ -27,10 +26,9 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
 
             trans_name  = as<std::string>(this_trans["name"]);
             trans_params = as<NumericMatrix>(this_trans["params"]);
-            max_time = as<double>(this_trans["max"]);
 
             // Add this transition to the current states available ones
-            this_state->add_transition(Transition::create_transition(trans_name, dest, trans_params, max_time));
+            this_state->add_transition(Transition::create_transition(trans_name, dest, trans_params));
         }
         states.push_back(this_state);
     }
