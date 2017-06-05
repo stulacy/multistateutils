@@ -62,13 +62,14 @@ output$specifycols <- renderUI({
 spec_col_dropdown <- renderUI({
 
     isolate({
-        raw_attrs <- names(all_raw_attrs())
+        attrs <- all_raw_attrs()
+        raw_attrs <- names(attrs)
         item_list <- list()
 
         for (i in seq_along(raw_attrs)) {
 
             # Obtain type information
-            attr <- all_raw_attrs()[[i]]
+            attr <- attrs[[i]]
             if (attr$type == 'Continuous') {
                 type_info <- 'continuous'
             } else {
@@ -77,7 +78,7 @@ spec_col_dropdown <- renderUI({
             item_list[[i]] <- selectInput(paste0("rawattr", raw_attrs[i]),
                                           HTML(paste0(raw_attrs[i], ' (', type_info, ')')),
                                           choices=COVAR_TYPES,
-                                          selected=all_raw_attrs()[[i]]$use)
+                                          selected=attrs[[i]]$use)
         }
         do.call(tagList, item_list)
 
@@ -95,8 +96,10 @@ output$rawattrinfo <- renderUI({
     if (is.null(uploaded_data()))
         return(p("No data uploaded."))
 
+    attrs <- all_raw_attrs()
+
     attr_list <- paste0("<ul>", paste0(sapply(COVAR_TYPES, function(b) {
-                            entries <- names(all_raw_attrs())[sapply(all_raw_attrs(), function(d) d$use == b)]
+                            entries <- names(attrs)[sapply(attrs, function(d) b %in% d$use)]
                             paste0("<li>", b, "<ul>", paste0(sapply(entries, function(d) paste0("<li><code>", d, "</code></li>")), collapse=''), "</ul>", "</li>")
                         }),
                         collapse=''),

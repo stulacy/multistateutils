@@ -11,6 +11,7 @@ DEFAULT_COVAR_TYPE <- 'Individual attribute'
 NO_COVAR_FORMULA <- '1'
 ERROR_MARGIN <- 1.25
 MIN_ENTRY_SEPARATION = 1
+DEATH_OLD_AGE_STATE <- "oldage"
 
 DISTS <- list("Normal"=list(params=c("mean", "variance"),
                             short="N",
@@ -107,7 +108,12 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                  dtype = "Categorical",
                                  time_to_event=FALSE,
                                  attribute_prior=TRUE,
-                                 draw=function(n, params) as.vector(rmultinom(1, n, params)))
+                                 draw=function(n, params) as.vector(rmultinom(1, n, params))),
+              "Oldage"=list(short="oldage",
+                            dtype="continuous",
+                            flex="oldage",
+                            time_to_event=FALSE,
+                            attribute_prior=FALSE)
               )
 COVAR_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$attribute_prior)]
 TIME_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$time_to_event)]
@@ -120,15 +126,21 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     setDT(raw_attrs)
     new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric, attributes))
 
-    # Obtain parameters for each distribution for each individual
-    transition_list <- lapply(transitions, function(t) {
-        list(name=DISTS[[t$dist]]$flex,
-             params=as.matrix(calculate_parameters(t$params, new_data, n_inds)),
-             max=t$max_time)
-    })
+    new_trans <- list()
+    for (i in seq(nrow(trans_mat))) {
+        for (j in seq(ncol(trans_mat))) {
+            if (trans_mat[i, j] > 0) {
+                ind <- paste(i, j, sep='-')
+                t <- transitions[[ind]]
+                new_trans[[ind]] <- list(name=DISTS[[t$dist]]$flex,
+                                         params=as.matrix(calculate_parameters(t$params, new_data, n_inds)),
+                                         max=t$max_time)
+            }
+        }
+    }
 
     # Line that runs the simulation
-    history <- desCpp(transition_list, trans_mat, initial_times)
+    history <- desCpp(new_trans, trans_mat, initial_times)
     history <- data.table(history)
     setnames(history, c('id', 'state', 'time'))
     history[, c('id', 'state') := list(as.factor(id + 1),
@@ -139,7 +151,6 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
         raw_attrs[, id := as.factor(seq(n_inds))]
         history <- history[raw_attrs, nomatch=0, on='id']  # Inner join in DT syntax
     }
-    browser()
     history
 }
 
@@ -148,7 +159,7 @@ calculate_number_individuals <- function(entry_rate, termination_method, termina
     if (termination_method == "Time limit") {
         # If specify time limit then number of individuals is rate * time limit, plus an error margin
         initial_n <- ERROR_MARGIN * (entry_rate * termination_value)
-    } else if (termination_method == "Number of individuals") {
+    } else if (termination_method == "Individual limit") {
         # Otherwise can specify number of individuals directly
         initial_n <- termination_value
     } else {
@@ -178,7 +189,7 @@ setup_eventlist_cpp <- function(entryrate, termination_criteria, termination_val
     if (termination_criteria == "Time limit") {
         # If specify time limit then number of individuals is rate * time limit, plus an error margin
         initial_n <- ERROR_MARGIN * (entryrate * termination_value)
-    } else if (termination_criteria == "Number of individuals") {
+    } else if (termination_criteria == "Individual limit") {
         # Otherwise can specify number of individuals directly
         initial_n <- termination_value
     } else {
@@ -273,13 +284,14 @@ calculate_parameters <- function(params, newdata, n_entries) {
     new_params <- sapply(params, function(p) gsub("\\[", "newdata\\[\\['", p))
     new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
     new_params <- sapply(new_params, function(p) parse(text=p))
-    param_vals <- sapply(new_params, function(p) eval(p))
-
-    if (typeof(param_vals) != 'list') {
-        param_vals <- matrix(rep(param_vals, n_entries), ncol=length(params), byrow=T)
-    }
+    param_vals <- lapply(new_params, function(p) eval(p))
 
     params_df <- data.frame(param_vals)
+
+    if (nrow(params_df) != n_entries) {
+        # Replicate rows
+        params_df <- params_df[rep(row.names(params_df), ceiling(n_entries / nrow(params_df))), ]
+    }
     colnames(params_df) <- paste0('p', seq(ncol(params_df)))
     params_df
 }

@@ -18,15 +18,19 @@ class Simulation {
         ~Simulation(void);
         void add_event(Event *);
         void add_history(std::tuple<int, int, double>);
-        std::vector<std::tuple<int, int, double> > get_history();
+        //std::unordered_map<int, std::vector< std::pair< int, double> > > get_history();
+        std::vector < std::tuple<int, int, double> > get_history();
+        double get_sim_entry_time(int);
+        double get_previous_state_entry_time(int);
         void run();
-        unsigned int time;
+        unsigned int clock;
         State* get_state(int);
         double get_next_event_time();
 
     private:
         std::priority_queue<Event*, std::vector<Event *>, CompareTimes> event_queue;
-        std::vector<std::tuple<int, int, double> > history;
+        //std::unordered_map<int, std::vector< std::pair< int, double> > > history;
+        std::vector < std::tuple<int, int, double> > history;
         std::vector<State*> states;
 };
 
