@@ -9,14 +9,10 @@ State::State(int num): num(num) {};
 
 // Destructor
 State::~State(void) {
-    for (auto it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it){
-        delete *it;
-    }
-    outgoing_transitions.clear();
 }
 
-void State::add_transition(Transition* transition) {
-    outgoing_transitions.push_back(transition);
+void State::add_transition(std::unique_ptr<Transition> transition) {
+    outgoing_transitions.push_back(std::move(transition));
     return;
 }
 

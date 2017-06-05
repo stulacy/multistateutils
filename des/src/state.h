@@ -13,11 +13,11 @@ class State {
         State(int num);
         ~State(void);
         std::pair<int, double> get_next_transition(int, double, double);
-        void add_transition(Transition*);
+        void add_transition(std::unique_ptr<Transition>);
         bool is_transient() const;
 
     private:
-        std::vector<Transition*> outgoing_transitions;
+        std::vector<std::unique_ptr<Transition> > outgoing_transitions;
 };
 
 #endif

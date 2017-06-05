@@ -36,26 +36,25 @@ double OldAgeTransition::draw(NumericMatrix::ConstRow row, double time_since_sta
 }
 
 // Factory method
-Transition *Transition::create_transition(std::string const& dist, int to, NumericMatrix params) {
+std::unique_ptr<Transition> Transition::create_transition(std::string const& dist, int to, NumericMatrix params) {
     if (dist == "weibull") {
-        return new WeibullTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new WeibullTransition(dist, to, params));
     } else if (dist == "lnorm") {
-        return new LogNormalTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new LogNormalTransition(dist, to, params));
     } else if (dist == "llogis") {
-        return new LogLogisticTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new LogLogisticTransition(dist, to, params));
     } else if (dist == "gamma") {
-        return new GammaTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new GammaTransition(dist, to, params));
     } else if (dist == "gompertz") {
-        return new GompertzTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new GompertzTransition(dist, to, params));
     } else if (dist == "exp") {
-        return new ExpTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new ExpTransition(dist, to, params));
     } else if (dist == "oldage") {
-        return new OldAgeTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new OldAgeTransition(dist, to, params));
     } else {
         // TODO Should raise error instead
         Rcpp::Rcerr << "Error: Distribution choice '" << dist << "' not found in options. \n";
-
-        return new WeibullTransition(dist, to, params);
+        return std::unique_ptr<Transition>(new WeibullTransition(dist, to, params));
     }
 
 }

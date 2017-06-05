@@ -13,7 +13,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
     nstates = trans_mat.nrow();
 
     for (int source=0; source < nstates; source++) {
-        State * this_state = new State(source);
+        State* this_state = new State(source);
         for (int dest=0; dest < nstates; dest++) {
             cell = trans_mat(source, dest);
             if (cell == 0) { // No transition is indicated by 0 in transition matrix
@@ -28,7 +28,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
             trans_params = as<NumericMatrix>(this_trans["params"]);
 
             // Add this transition to the current states available ones
-            this_state->add_transition(Transition::create_transition(trans_name, dest, trans_params));
+            this_state->add_transition(std::move(Transition::create_transition(trans_name, dest, trans_params)));
         }
         states.push_back(this_state);
     }
@@ -76,22 +76,12 @@ State* Simulation::get_state(int index) {
 }
 
 void Simulation::add_history(std::tuple<int, int, double> curr_state) {
-    //history[id].push_back(curr_state);
     history.push_back(curr_state);
 }
 
 std::vector<std::tuple<int, int, double> > Simulation::get_history() {
     return history;
 }
-
-//double Simulation::get_sim_entry_time(int id) {
-//    return this->history[id][0].second;
-//}
-//
-//double Simulation::get_previous_state_entry_time(int id) {
-//    auto ind_history = this->history[id];
-//    return (ind_history.size() < 2) ? ind_history[0].second : ind_history[ind_history.size()-2].second;
-//}
 
 bool CompareTimes::operator() (const Event *left, const Event* right) const {
     return left->time > right->time;
