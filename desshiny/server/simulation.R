@@ -72,7 +72,6 @@ output$savemodel <- downloadHandler(
                    list('source' = states()[t$from],
                         'target' = states()[t$to],
                         'distribution' = t$dist,
-                        'max_time' = t$max_time,
                         'parameters' = t$params)
                         }),
            'simulation_parameters' = list('termination_criteria'=input$terminationcriteria,
@@ -206,9 +205,8 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
         trans_mat[sink_states(), ] <- 0
 
         for (i in seq(nrow(trans_mat)-1)) {
-            transitions[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage",
-                                                                    params="[age]*365.25",
-                                                                    max_time=9999)
+            transitions[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25")
+
         }
     }
 

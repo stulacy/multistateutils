@@ -2,19 +2,19 @@
 #define _TRANSITIONS_H
 
 #include <Rcpp.h>
+#include <memory>
 using namespace Rcpp;
 
 class Transition {
     public:
-        Transition(std::string const&, int, NumericMatrix, double);
-        static Transition *create_transition(std::string const&, int, NumericMatrix, double);
+        Transition(std::string const&, int, NumericMatrix);
+        static std::unique_ptr<Transition> create_transition(std::string const&, int, NumericMatrix);
         double draw_event_time(int, double, double) const;
         virtual double draw(NumericMatrix::ConstRow, double, double) const = 0;
 
         const std::string name;
         const int to;
         const NumericMatrix params;
-        const double max_time;
 };
 
 class WeibullTransition: public Transition {

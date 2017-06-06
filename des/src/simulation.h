@@ -4,21 +4,20 @@
 #include <queue>
 #include <tuple>
 #include <vector>
+#include <iostream>
 #include "state.h"
 
 class Event;
 
 struct CompareTimes {
-    bool operator() (const Event *left, const Event* right) const;
+    bool operator() (const Event left, const Event right) const;
 };
 
 class Simulation {
     public:
-        Simulation(std::vector<State*>, std::vector<double>);
-        ~Simulation(void);
-        void add_event(Event *);
+        Simulation(List, IntegerMatrix, std::vector<double>);
+        void add_event(Event);
         void add_history(std::tuple<int, int, double>);
-        //std::unordered_map<int, std::vector< std::pair< int, double> > > get_history();
         std::vector < std::tuple<int, int, double> > get_history();
         double get_sim_entry_time(int);
         double get_previous_state_entry_time(int);
@@ -28,10 +27,9 @@ class Simulation {
         double get_next_event_time();
 
     private:
-        std::priority_queue<Event*, std::vector<Event *>, CompareTimes> event_queue;
-        //std::unordered_map<int, std::vector< std::pair< int, double> > > history;
+        std::priority_queue<Event, std::vector<Event>, CompareTimes> event_queue;
         std::vector < std::tuple<int, int, double> > history;
-        std::vector<State*> states;
+        std::vector<State> states;
 };
 
 #endif

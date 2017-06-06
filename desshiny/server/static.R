@@ -133,8 +133,7 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
                 ind <- paste(i, j, sep='-')
                 t <- transitions[[ind]]
                 new_trans[[ind]] <- list(name=DISTS[[t$dist]]$flex,
-                                         params=as.matrix(calculate_parameters(t$params, new_data, n_inds)),
-                                         max=t$max_time)
+                                         params=as.matrix(calculate_parameters(t$params, new_data, n_inds)))
             }
         }
     }
