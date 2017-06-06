@@ -7,10 +7,6 @@
 // Constructor
 State::State(int num): num(num) {};
 
-// Destructor
-State::~State(void) {
-}
-
 void State::add_transition(std::unique_ptr<Transition> transition) {
     outgoing_transitions.push_back(std::move(transition));
     return;

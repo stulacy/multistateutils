@@ -30,7 +30,7 @@ class Simulation {
     private:
         std::priority_queue<Event*, std::vector<Event *>, CompareTimes> event_queue;
         std::vector < std::tuple<int, int, double> > history;
-        std::vector<State*> states;
+        std::vector<State> states;
 };
 
 #endif

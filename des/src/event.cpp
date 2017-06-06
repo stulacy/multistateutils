@@ -10,8 +10,6 @@ Event::Event(int individual_id, int state, double time, double sim, double prev_
     individual_id(individual_id), state_entering(state), time(time), sim_entry(sim), prev_state_entry(prev_state) {}
 
 void Event::processEvent(Simulation* sim) {
-    //State entering_state;
-
     //sim->add_history(individual_id, std::pair<int, double> (state_entering, time));
     sim->add_history(std::tuple<int, int, double> (individual_id, state_entering, time));
 

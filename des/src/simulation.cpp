@@ -13,7 +13,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
     nstates = trans_mat.nrow();
 
     for (int source=0; source < nstates; source++) {
-        State* this_state = new State(source);
+        State nstate = State(source);
         for (int dest=0; dest < nstates; dest++) {
             cell = trans_mat(source, dest);
             if (cell == 0) { // No transition is indicated by 0 in transition matrix
@@ -27,10 +27,9 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
             trans_name  = as<std::string>(this_trans["name"]);
             trans_params = as<NumericMatrix>(this_trans["params"]);
 
-            // Add this transition to the current states available ones
-            this_state->add_transition(std::move(Transition::create_transition(trans_name, dest, trans_params)));
+            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, trans_params)));
         }
-        states.push_back(this_state);
+        states.push_back(std::move(nstate));
     }
 
 
@@ -45,10 +44,10 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
 }
 
 Simulation::~Simulation(void) {
-    for (auto it = states.begin(); it != states.end(); ++it){
-        delete *it;
-    }
-    states.clear();
+    //for (auto it = states.begin(); it != states.end(); ++it){
+    //    delete *it;
+    //}
+    //states.clear();
 }
 
 void Simulation::run() {
@@ -72,7 +71,7 @@ void Simulation::add_event(Event * newEvent) {
 
 
 State* Simulation::get_state(int index) {
-    return states[index];
+    return &states[index];
 }
 
 void Simulation::add_history(std::tuple<int, int, double> curr_state) {
