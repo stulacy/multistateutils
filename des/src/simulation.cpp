@@ -43,9 +43,6 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
     }
 }
 
-Simulation::~Simulation(void) {
-}
-
 void Simulation::run() {
     while (! event_queue.empty()) {
         Event next_event = event_queue.top();
