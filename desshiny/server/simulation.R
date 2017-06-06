@@ -67,18 +67,31 @@ output$savemodel <- downloadHandler(
         paste0(input$simulationname, '_model.json')
     },
     content = function(file) {
+        this_states = states()
+        this_transitions = reactiveValuesToList(transitions)
+
+        if (input$agelimit) {
+            oldage_ind <- length(this_states) + 1
+            for (i in seq_along(this_states)) {
+                this_transitions[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25",
+                                                                          to=oldage_ind, from=i)
+            }
+            this_states <- c(this_states, DEATH_OLD_AGE_STATE)
+        }
+
         output <- list(
-           'transitions' = lapply(reactiveValuesToList(transitions), function(t) {
-                   list('source' = states()[t$from],
-                        'target' = states()[t$to],
+           'transitions' = lapply(this_transitions, function(t) {
+                   list('source' = this_states[t$from],
+                        'target' = this_states[t$to],
                         'distribution' = t$dist,
                         'parameters' = t$params)
                         }),
+           'states' = this_states,
            'simulation_parameters' = list('termination_criteria'=input$terminationcriteria,
                                           'termination_value'=input$termcriteriavalue,
                                           'entry_rate'=input$entryrate)
         )
-        write(toJSON(output), file)
+        write(toJSON(output, pretty=T), file)
     }
 )
 
@@ -191,10 +204,11 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
     # Setup transition matrix
     trans_mat <- Q()
     trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
+    transition_list <- reactiveValuesToList(transitions)
 
     # Update transition matrix and list
+    # TODO Only add transitions from non-sink states
     if (input$agelimit) {
-
         trans_mat <- rbind(trans_mat, 0)
         oldage_ind <- nrow(trans_mat)
         trans_mat <- cbind(trans_mat, c(seq(max(trans_mat)+1, max(trans_mat)+ncol(trans_mat)), 0))
@@ -205,11 +219,10 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
         trans_mat[sink_states(), ] <- 0
 
         for (i in seq(nrow(trans_mat)-1)) {
-            transitions[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25")
+            transition_list[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25")
 
         }
     }
-
 
     withProgress(message="Running simulations", value=0, max=n_sims, {
         print(system.time({
@@ -217,13 +230,13 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
                 end_states <- mclapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
+                                           reactiveValuesToList(attributes), transition_list)
                     })
             } else {
                 end_states <- lapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
+                                           reactiveValuesToList(attributes), transition_list)
                     })
             }
 
