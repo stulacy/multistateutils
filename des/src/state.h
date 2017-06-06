@@ -15,14 +15,6 @@ class State {
         void add_transition(std::unique_ptr<Transition>);
         bool is_transient() const;
 
-        // Was getting errors as State was being copied causing unique_ptr to panic as
-        // it's used to store outgoing transitions. Fix from this SO post.
-        // https://stackoverflow.com/questions/21943569/deleted-function-unique-ptr
-        //explicit State();
-        //State(const State&) = delete;
-        //State& operator=(const State&) = delete;
-        //~State() = default;
-
     private:
         std::vector<std::unique_ptr<Transition> > outgoing_transitions;
 };
