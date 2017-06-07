@@ -36,7 +36,7 @@ states <- reactive({
 })
 
 have_age <- reactive({
-    attrs <- all_raw_attrs()
+    attrs <- reactiveValuesToList(attributes)
     "age" %in% names(attrs) && attrs[['age']]$type == "Continuous"
 })
 

@@ -12,7 +12,7 @@ output$individualhorizon <- renderUI({
     if (have_age()) {
         checkboxInput("agelimit", "Terminate patient at 100", value=TRUE)
     } else {
-        HTMl("No <code>age</code> attribute provided either in the uploaded data or as a simulated attribute.")
+        HTML("No <code>age</code> attribute provided either in the uploaded data or as a simulated attribute.")
     }
 })
 
@@ -70,7 +70,7 @@ output$savemodel <- downloadHandler(
         this_states = states()
         this_transitions = reactiveValuesToList(transitions)
 
-        if (input$agelimit) {
+        if (!is.null(input$agelimit) && input$agelimit) {
             oldage_ind <- length(this_states) + 1
             for (i in seq_along(this_states)) {
                 this_transitions[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25",
@@ -208,7 +208,7 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
     attrs <- reactiveValuesToList(attributes)
 
     # Update transition matrix and list
-    if (input$agelimit) {
+    if (!is.null(input$agelimit) && input$agelimit) {
         trans_mat <- rbind(trans_mat, 0)
         oldage_ind <- nrow(trans_mat)
         trans_mat <- cbind(trans_mat, c(seq(max(trans_mat)+1, max(trans_mat)+ncol(trans_mat)), 0))
