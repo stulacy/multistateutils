@@ -160,6 +160,11 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric, attributes))
     new_data <- cbind(intercept=1, new_data)
 
+    # TODO Have some switch where this is governed by a time-scale parameter
+    if ('age' %in% colnames(new_data)) {
+        new_data$age <- new_data$age * 365.25
+    }
+
     # Line that runs the simulation
     history <- desCpp(transitions, trans_mat, as.matrix(new_data), initial_times)
 

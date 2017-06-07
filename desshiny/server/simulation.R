@@ -220,7 +220,7 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
 
         for (i in seq(nrow(trans_mat)-1)) {
             transition_list[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25",
-                                                                     coefs = list(c(age=365.25))) # Need age in days for sim.
+                                                                     coefs = list(c(age=1))) # Need age in days for sim.
                                                                                                   # Can have this as 1 if time-scale is years
         }
     }
