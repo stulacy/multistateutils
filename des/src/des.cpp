@@ -12,8 +12,6 @@ using namespace Rcpp;
 // [[Rcpp::export]]
 NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericMatrix individual_attributes, NumericVector initial_times) {
 
-    //Rcpp::Rcout << "attributes: " << individual_attributes << "\n";
-
     Simulation sim(transitions, transmat, individual_attributes, as<std::vector<double> > (initial_times));
     sim.run();
 
