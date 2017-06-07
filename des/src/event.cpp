@@ -14,7 +14,9 @@ void Event::processEvent(Simulation* sim) {
 
     State* entering_state = sim->get_state(state_entering);
     if (entering_state->is_transient()) {
-        std::pair<int, double> next_transition = entering_state->get_next_transition(individual_id,
+
+        // TODO Get patient attributes from Simulation
+        std::pair<int, double> next_transition = entering_state->get_next_transition(sim->get_patient_attrs(individual_id),
                                                                                      this->time - this->sim_entry,  // Time since entry
                                                                                      this->time - this->prev_state_entry);  // Soujourn time
         sim->add_event(Event(individual_id,

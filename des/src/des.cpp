@@ -10,10 +10,14 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector initial_times) {
-    Simulation sim(transitions, transmat, as<std::vector<double> > (initial_times));
+NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericMatrix individual_attributes, NumericVector initial_times) {
+
+    //Rcpp::Rcout << "attributes: " << individual_attributes << "\n";
+
+    Simulation sim(transitions, transmat, individual_attributes, as<std::vector<double> > (initial_times));
     sim.run();
 
+    // Convert history into Rcpp::NumericMatrix to be returned
     auto history = sim.get_history();
     NumericMatrix hist_mat(history.size(), 3);
     for (std::size_t i = 0; i < history.size(); ++i) {
@@ -26,6 +30,6 @@ NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericVector ini
         Rcpp::Rcerr << "Error: null history matrix" << "\n";
     }
 
-    return(hist_mat);
+    return hist_mat;
 }
 
