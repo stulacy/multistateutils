@@ -205,9 +205,9 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
     trans_mat <- Q()
     trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
     transition_list <- reactiveValuesToList(transitions)
+    attrs <- reactiveValuesToList(attributes)
 
     # Update transition matrix and list
-    # TODO Only add transitions from non-sink states
     if (input$agelimit) {
         trans_mat <- rbind(trans_mat, 0)
         oldage_ind <- nrow(trans_mat)
@@ -219,8 +219,38 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
         trans_mat[sink_states(), ] <- 0
 
         for (i in seq(nrow(trans_mat)-1)) {
-            transition_list[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25")
+            transition_list[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25",
+                                                                     coefs = list(c(age=1))) # Need age in days for sim.
+                                                                                                  # Can have this as 1 if time-scale is years
+        }
+    }
 
+    # Extract vector of attributes with categorical variables being expanded to
+    # include the dummy variable for each level
+    attr_names <- c('intercept', unlist(lapply(names(attrs), function(a) {
+        attr <- attrs[[a]]
+        if (attr$type == "Categorical") {
+            paste(a, attr$levels, sep='.')
+        } else if (attr$type == 'Continuous') {
+            a
+        } else {
+            stop(paste0("Error: Unknown data type '", attr$type, "'."))
+        }
+    })))
+
+    # Create list of transitions suitable for entry into the C++ code
+    new_trans <- list()
+    for (i in seq(nrow(trans_mat))) {
+        for (j in seq(ncol(trans_mat))) {
+            if (trans_mat[i, j] > 0) {
+                ind <- paste(i, j, sep='-')
+                t <- transition_list[[ind]]
+                new_trans[[ind]] <- list(name=DISTS[[t$dist]]$flex,
+                                         coefs = lapply(t$coefs, function(coef_vector) {
+                                             list(match(names(coef_vector), attr_names) - 1,  # C++ is 0-indexed
+                                                  unname(coef_vector))
+                                         }))
+            }
         }
     }
 
@@ -230,13 +260,13 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
                 end_states <- mclapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), transition_list)
+                                           attrs, new_trans)
                     })
             } else {
                 end_states <- lapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), transition_list)
+                                           attrs, new_trans)
                     })
             }
 

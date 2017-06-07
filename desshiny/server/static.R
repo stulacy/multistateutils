@@ -31,6 +31,11 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                 shape <- paste(exp(coefs['shape']))
                                 c(scale, shape)
                              },
+                             parameter_coefficients = function(dist_params, covars) {
+                                 scale <- exp(c(intercept=unname(dist_params['scale']), covars))
+                                 shape <- c(intercept=unname(exp(dist_params['shape'])))
+                                 list(scale, shape)
+                             },
                              draw = function(n, params) rweibull(n, scale=params[1], shape=params[2]),
                              cumdens = function(time, params) pweibull(time, scale=params[1], shape=params[2])),
               "Gamma"=list(params=c("rate", "shape"),
@@ -44,6 +49,11 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                               shape <- paste(exp(coefs['shape']))
                               c(rate, shape)
                            },
+                           parameter_coefficients = function(dist_params, covars) {
+                               rate <- exp(c(intercept=unname(dist_params['rate']), covars))
+                               shape <- c(intercept=unname(exp(dist_params['shape'])))
+                               list(rate, shape)
+                           },
                            draw = function(n, params) rgamma(n, rate=params[1], shape=params[2]),
                            cumdens = function(time, params) pgamma(time, rate=params[1], shape=params[2])),
               "Exponential"=list(params=c('rate'),
@@ -55,6 +65,10 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                  get_params_from_mod = function(coefs, covars) {
                                     rate <- paste0('exp(', coefs['rate'], covars, ')')
                                     rate
+                                 },
+                                 parameter_coefficients = function(dist_params, covars) {
+                                     rate <- exp(c(intercept=unname(dist_params['rate']), covars))
+                                     list(rate)
                                  },
                                  draw = function(n, params) rexp(n, rate=params[1]),
                                  cumdens = function(time, params) pexp(time, rate=params[1])),
@@ -69,6 +83,11 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                     sdlog <- paste(exp(coefs['sdlog']))
                                     c(meanlog, sdlog)
                                 },
+                                parameter_coefficients = function(dist_params, covars) {
+                                    meanlog <- c(intercept=unname(dist_params['meanlog']), covars)
+                                    sdlog <- c(intercept=unname(exp(dist_params['sdlog'])))
+                                    list(meanlog, sdlog)
+                                },
                                 draw = function(n, params) rlnorm(n, meanlog=params[1], sdlog=params[2]),
                                 cumdens = function(time, params) plnorm(time, meanlog=params[1], sdlog=params[2])),
               "Log-Logistic"=list(params=c('scale', 'shape'),
@@ -82,6 +101,11 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                       shape <- paste(exp(coefs['shape']))
                                       c(scale, shape)
                                   },
+                                  parameter_coefficients = function(dist_params, covars) {
+                                      scale <- exp(c(intercept=unname(dist_params['scale']), covars))
+                                      shape <- c(intercept=unname(exp(dist_params['shape'])))
+                                      list(scale, shape)
+                                  },
                                   draw = function(n, params) rllogis(n, scale=params[1], shape=params[2]),
                                   cumdens = function(time, params) pllogis(time, scale=params[1], shape=params[2])),
               "Gompertz"=list(params=c('rate', 'shape'),
@@ -91,9 +115,14 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                               time_to_event=FALSE,
                               attribute_prior=FALSE,
                               get_params_from_mod = function(coefs, covars) {
-                                  scale <- paste0('exp(', coefs['rate'], covars, ')')
+                                  rate <- paste0('exp(', coefs['rate'], covars, ')')
                                   shape <- paste(coefs['shape'])
-                                  c(scale, shape)
+                                  c(rate, shape)
+                              },
+                              parameter_coefficients = function(dist_params, covars) {
+                                  rate <- exp(c(intercept=unname(dist_params['rate']), covars))
+                                  shape <- c(intercept=unname(dist_params['shape']))
+                                  list(rate, shape)
                               },
                               draw = function(n, params) rgompertz(n, rate=params[1], shape=params[2]),
                               cumdens = function(time, params) pgompertz(time, rate=params[1], shape=params[2])),
@@ -112,6 +141,9 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
               "Oldage"=list(short="oldage",
                             dtype="continuous",
                             flex="oldage",
+                            parameter_coefficients = function(dist_params, covars) {
+                                list(unname(covars))
+                            },
                             time_to_event=FALSE,
                             attribute_prior=FALSE)
               )
@@ -119,27 +151,23 @@ COVAR_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$attribute_prior)]
 TIME_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$time_to_event)]
 
 run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attributes, transitions) {
+
     # Obtain entry times and attributes for incident individuals
     initial_times <- calculate_event_times(num_inds, entryrate, censor_time)
     n_inds <- length(initial_times)
     raw_attrs <- lapply(attributes, function(x) x$draw(n_inds))
     setDT(raw_attrs)
     new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric, attributes))
+    new_data <- cbind(intercept=1, new_data)
 
-    new_trans <- list()
-    for (i in seq(nrow(trans_mat))) {
-        for (j in seq(ncol(trans_mat))) {
-            if (trans_mat[i, j] > 0) {
-                ind <- paste(i, j, sep='-')
-                t <- transitions[[ind]]
-                new_trans[[ind]] <- list(name=DISTS[[t$dist]]$flex,
-                                         params=as.matrix(calculate_parameters(t$params, new_data, n_inds)))
-            }
-        }
+    # TODO Have some switch where this is governed by a time-scale parameter
+    if ('age' %in% colnames(new_data)) {
+        new_data$age <- new_data$age * 365.25
     }
 
     # Line that runs the simulation
-    history <- desCpp(new_trans, trans_mat, initial_times)
+    history <- desCpp(transitions, trans_mat, as.matrix(new_data), initial_times)
+
     history <- data.table(history)
     setnames(history, c('id', 'state', 'time'))
     history[, c('id', 'state') := list(as.factor(id + 1),
@@ -233,7 +261,7 @@ convert_stringdata_to_numeric <- function(df, attrs_list) {
     newdf
 }
 
-create_param_string_from_mod = function(dist, mod, cat_vars) {
+create_param_string_from_mod <- function(dist, mod, cat_vars) {
     num_params <- length(dist$params)
     ps <- coef(mod)
 
@@ -254,6 +282,23 @@ create_param_string_from_mod = function(dist, mod, cat_vars) {
     dist$get_params_from_mod(ps, covar)
 }
 
+get_coefs_from_mod <- function(dist, mod, cat_vars) {
+    coefs <- coef(mod)
+
+    # Replace categorical variable names with ones with fullstops in as this how they
+    # are stored when expanded to dummy variables
+    for (x in cat_vars) {
+       names(coefs) <- gsub(x, paste0(x, "."), names(coefs))
+    }
+
+    # Extract distribution params and covariates
+    dist_params <- coefs[names(coefs) %in% dist$params]
+    covars <- coefs[!names(coefs) %in% dist$params]
+
+    # Each distribution is parameterised slightly differently so delegate the definition of
+    # parameter specific coefficients to them
+    dist$parameter_coefficients(dist_params, covars)
+}
 
 get_attr_names <- function(str) {
     # Extracts attribute names from a vector of strings
