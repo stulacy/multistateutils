@@ -1,4 +1,4 @@
-id,time.pr,status.pr,time.rfs,status.rfs,disease,age
+id,time.pr,status.pr,time.rfs,status.rfs,disease,agegroup
 1,23,1,744,0,CML,>40
 2,35,1,360,1,CML,>40
 3,26,1,135,1,CML,>40
