@@ -7,6 +7,15 @@ output$termcriteriadiv <- renderUI({
     textInput("termcriteriavalue", "Value of termination criteria", value=method)
 })
 
+
+output$individualhorizon <- renderUI({
+    if (have_age()) {
+        checkboxInput("agelimit", "Terminate patient at 100", value=TRUE)
+    } else {
+        HTML("No <code>age</code> attribute provided either in the uploaded data or as a simulated attribute.")
+    }
+})
+
 output$simendstates <- renderUI({
     res <- simoutput()
 
@@ -58,18 +67,31 @@ output$savemodel <- downloadHandler(
         paste0(input$simulationname, '_model.json')
     },
     content = function(file) {
+        this_states = states()
+        this_transitions = reactiveValuesToList(transitions)
+
+        if (!is.null(input$agelimit) && input$agelimit) {
+            oldage_ind <- length(this_states) + 1
+            for (i in seq_along(this_states)) {
+                this_transitions[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25",
+                                                                          to=oldage_ind, from=i)
+            }
+            this_states <- c(this_states, DEATH_OLD_AGE_STATE)
+        }
+
         output <- list(
-           'transitions' = lapply(reactiveValuesToList(transitions), function(t) {
-                   list('source' = states()[t$from],
-                        'target' = states()[t$to],
+           'transitions' = lapply(this_transitions, function(t) {
+                   list('source' = this_states[t$from],
+                        'target' = this_states[t$to],
                         'distribution' = t$dist,
                         'parameters' = t$params)
                         }),
+           'states' = this_states,
            'simulation_parameters' = list('termination_criteria'=input$terminationcriteria,
                                           'termination_value'=input$termcriteriavalue,
                                           'entry_rate'=input$entryrate)
         )
-        write(toJSON(output), file)
+        write(toJSON(output, pretty=T), file)
     }
 )
 
@@ -102,6 +124,14 @@ output$saveresults <- downloadHandler(
             res <- simoutput()
             n_sims <- length(res)
             this_states <- states()
+            this_sinks <- sink_states()
+
+            # Add death from old age if using
+            if (!is.null(input$agelimit) && input$agelimit) {
+                this_states <- c(this_states, DEATH_OLD_AGE_STATE)
+                this_sinks <- c(this_sinks, DEATH_OLD_AGE_STATE)
+            }
+
             resDT <- rbindlist(res, idcol='sim')
             resDT$state <- this_states[resDT$state+1]
 
@@ -112,7 +142,6 @@ output$saveresults <- downloadHandler(
             termination_value <- as.numeric(input$termcriteriavalue)
             censor_time <- if (termination_method == "Time limit") termination_value else max(resDT$time)
 
-            # TODO What to do if have some states that are never reached?
             # Cast to wide to get state-specific times, required to get NAs for states that aren't entered
             resDT_wide <- dcast(resDT, melt_form, value.var='time')
             # Add status, this is done melting back to long
@@ -129,7 +158,7 @@ output$saveresults <- downloadHandler(
             # Final step is to add in censored times for states that aren't reached
             time_cols <- grep("time_", colnames(resDT_complete))
             time_names <- colnames(resDT_complete)[time_cols]
-            sink_cols <- grep(paste0("status_", sink_states()), colnames(resDT_complete))
+            sink_cols <- which(colnames(resDT_complete) %in% paste0("status_", this_sinks))
 
             missing_time <- resDT_complete[, Reduce(`|`, lapply(.SD, function(x) is.na(x))), .SDcols=time_cols]
             reached_absorbtive_state <- resDT_complete[, Reduce(`|`, lapply(.SD, function(x) x == 1)), .SDcols=sink_cols] >= 1
@@ -175,23 +204,42 @@ simoutput <- eventReactive(input$runmultiplesimbutton, {
     # Setup transition matrix
     trans_mat <- Q()
     trans_mat[is.na(trans_mat)] <- 0  # C++ can't handle NA
+    transition_list <- reactiveValuesToList(transitions)
+
+    # Update transition matrix and list
+    if (!is.null(input$agelimit) && input$agelimit) {
+        trans_mat <- rbind(trans_mat, 0)
+        oldage_ind <- nrow(trans_mat)
+        trans_mat <- cbind(trans_mat, c(seq(max(trans_mat)+1, max(trans_mat)+ncol(trans_mat)), 0))
+        row.names(trans_mat)[oldage_ind] <- DEATH_OLD_AGE_STATE
+        colnames(trans_mat)[oldage_ind] <- DEATH_OLD_AGE_STATE
+
+        # Don't add paths from existing sink states!
+        trans_mat[sink_states(), ] <- 0
+
+        for (i in seq(nrow(trans_mat)-1)) {
+            transition_list[[paste(i, oldage_ind, sep='-')]] <- list(dist="Oldage", params="[age]*365.25")
+
+        }
+    }
 
     withProgress(message="Running simulations", value=0, max=n_sims, {
-        #print(system.time({
+        print(system.time({
             if (platform == "unix" && n_sims > 1) {
                 end_states <- mclapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
+                                           reactiveValuesToList(attributes), transition_list)
                     })
             } else {
                 end_states <- lapply(seq(n_sims), function(i) {
                         incProgress(1, detail=paste(i))
                         run_simulation_cpp(trans_mat, num_inds, entry_rate, censor_time,
-                                           reactiveValuesToList(attributes), reactiveValuesToList(transitions))
+                                           reactiveValuesToList(attributes), transition_list)
                     })
             }
-        #}))
+
+        }))
     })
 
     end_states

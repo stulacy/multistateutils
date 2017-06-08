@@ -16,11 +16,11 @@ starting_states <- reactive({
 
 
 states <- reactive({
-    # If have pressed update button then get states from the inputs
     if (is.null(input$updatestates))
         return()
 
-    if (input$updatestates > 0) {
+    # If have pressed update button then get states from the inputs
+    main_states <- if (input$updatestates > 0) {
         isolate({
             num_states <- if (is.null(input$stateslider)) NUM_STARTING_STATES else input$stateslider
             # This should never be true but best to be careful
@@ -30,10 +30,16 @@ states <- reactive({
             })
         })
     } else {
-        # Try and get state information from data
         starting_states()
     }
+    main_states
 })
+
+have_age <- reactive({
+    attrs <- reactiveValuesToList(attributes)
+    "age" %in% names(attrs) && attrs[['age']]$type == "Continuous"
+})
+
 
 sink_states <- reactive({
     trans_mat <- Q()
@@ -124,22 +130,12 @@ output$currtrans <- renderTable({
 
 output$statedia <- renderGrViz({
 
-    this_states <- states()
-
-    if (is.null(this_states)) {
-      return()
-    }
-
-    input$addtrans
-
-    isolate({
-        states_dot <- paste0("node [shape=circle, penwidth=2] ", paste0(this_states, collapse=";"), ";")
-        edges <- sapply(reactiveValuesToList(transitions), function(x) paste(this_states[x$from], this_states[x$to], sep=" -> "))
-        edges_dot <- if (length(edges) > 0) paste(edges, "[penwidth=2]", collapse='\n') else ""
-
-        full <- paste("digraph states {", states_dot, edges_dot, "}")
-        grViz(full)
-    })
+    trans_mat <- Q()
+    trans_mat[trans_mat > 1] <- 1
+    graph <- from_adj_matrix(trans_mat, mode="directed")
+    #graph <- set_node_attrs(graph, "style", "solid")
+    #graph <- set_node_attrs(graph, "color", "black")
+    render_graph(graph)
 
 })
 

@@ -10,6 +10,7 @@ if (!require(parallel)) install.packages("parallel")
 if (!require(jsonlite)) install.packages("jsonlite")
 if (!require(data.table)) install.packages("data.table")
 if (!require(profvis)) install.packages("profvis")
+if (!require(matrixStats)) install.packages("matrixStats")
 require(des)
 
 ui <- navbarPage("Discrete Event Simulation",

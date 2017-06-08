@@ -7,16 +7,8 @@
 // Constructor
 State::State(int num): num(num) {};
 
-// Destructor
-State::~State(void) {
-    for (auto it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it){
-        delete *it;
-    }
-    outgoing_transitions.clear();
-}
-
-void State::add_transition(Transition* transition) {
-    outgoing_transitions.push_back(transition);
+void State::add_transition(std::unique_ptr<Transition> transition) {
+    outgoing_transitions.emplace_back(std::move(transition));
     return;
 }
 
@@ -24,7 +16,7 @@ bool State::is_transient() const {
     return (outgoing_transitions.size() > 0);
 }
 
-std::pair<int, double> State::get_next_transition(int id) {
+std::pair<int, double> State::get_next_transition(int id, double time_since_entry, double sojourn_time) {
     if (is_transient()) {
         int winning_state;
         double lowest_event_time;
@@ -35,7 +27,7 @@ std::pair<int, double> State::get_next_transition(int id) {
 
         // Iterate over all transitions and obtain the event time
         for (auto it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
-            this_event_time = std::max(MINIMUM_EVENT_TIME, (*it)->draw_event_time(id));
+            this_event_time = std::max(MINIMUM_EVENT_TIME, (*it)->draw_event_time(id, time_since_entry, sojourn_time));
             if (this_event_time < lowest_event_time) {
                 lowest_event_time = this_event_time;
                 winning_state = (*it)->to;
@@ -44,8 +36,9 @@ std::pair<int, double> State::get_next_transition(int id) {
 
         if (winning_state == -1) {
             // TODO Should raise error here
-            Rcpp::Rcout << "Error: didn't find next state \n";
+            Rcpp::Rcerr << "Error: didn't find next state \n";
         }
+
         return std::pair<int, double> (winning_state, lowest_event_time);
     } else {
         // TODO This should really raise an error instead

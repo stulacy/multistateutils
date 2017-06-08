@@ -11,6 +11,7 @@ DEFAULT_COVAR_TYPE <- 'Individual attribute'
 NO_COVAR_FORMULA <- '1'
 ERROR_MARGIN <- 1.25
 MIN_ENTRY_SEPARATION = 1
+DEATH_OLD_AGE_STATE <- "oldage"
 
 DISTS <- list("Normal"=list(params=c("mean", "variance"),
                             short="N",
@@ -107,7 +108,12 @@ DISTS <- list("Normal"=list(params=c("mean", "variance"),
                                  dtype = "Categorical",
                                  time_to_event=FALSE,
                                  attribute_prior=TRUE,
-                                 draw=function(n, params) as.vector(rmultinom(1, n, params)))
+                                 draw=function(n, params) as.vector(rmultinom(1, n, params))),
+              "Oldage"=list(short="oldage",
+                            dtype="continuous",
+                            flex="oldage",
+                            time_to_event=FALSE,
+                            attribute_prior=FALSE)
               )
 COVAR_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$attribute_prior)]
 TIME_DISTS <- names(DISTS)[sapply(DISTS, function(d) d$time_to_event)]
@@ -120,25 +126,31 @@ run_simulation_cpp <- function(trans_mat, num_inds, entryrate, censor_time, attr
     setDT(raw_attrs)
     new_data <- bind_rows(apply(raw_attrs, 1, convert_stringdata_to_numeric, attributes))
 
-    # Obtain parameters for each distribution for each individual
-    transition_list <- lapply(transitions, function(t) {
-        list(name=DISTS[[t$dist]]$flex,
-             params=as.matrix(calculate_parameters(t$params, new_data))
-        )
-    })
+    new_trans <- list()
+    for (i in seq(nrow(trans_mat))) {
+        for (j in seq(ncol(trans_mat))) {
+            if (trans_mat[i, j] > 0) {
+                ind <- paste(i, j, sep='-')
+                t <- transitions[[ind]]
+                new_trans[[ind]] <- list(name=DISTS[[t$dist]]$flex,
+                                         params=as.matrix(calculate_parameters(t$params, new_data, n_inds)))
+            }
+        }
+    }
 
     # Line that runs the simulation
-    raw_mat <- desCpp(transition_list, trans_mat, initial_times)
-
-    history <- data.table(raw_mat)
+    history <- desCpp(new_trans, trans_mat, initial_times)
+    history <- data.table(history)
     setnames(history, c('id', 'state', 'time'))
     history[, c('id', 'state') := list(as.factor(id + 1),
                                        as.integer(state))]
-    # Add patient attribute information to the results
-    raw_attrs[, id := as.factor(seq(n_inds))]
 
-    total_results <- history[raw_attrs, nomatch=0, on='id']  # Inner join
-    total_results
+    # Add patient attribute information to the results if have it
+    if (ncol(raw_attrs) > 0) {
+        raw_attrs[, id := as.factor(seq(n_inds))]
+        history <- history[raw_attrs, nomatch=0, on='id']  # Inner join in DT syntax
+    }
+    history
 }
 
 calculate_number_individuals <- function(entry_rate, termination_method, termination_value) {
@@ -146,7 +158,7 @@ calculate_number_individuals <- function(entry_rate, termination_method, termina
     if (termination_method == "Time limit") {
         # If specify time limit then number of individuals is rate * time limit, plus an error margin
         initial_n <- ERROR_MARGIN * (entry_rate * termination_value)
-    } else if (termination_method == "Number of individuals") {
+    } else if (termination_method == "Individual limit") {
         # Otherwise can specify number of individuals directly
         initial_n <- termination_value
     } else {
@@ -176,7 +188,7 @@ setup_eventlist_cpp <- function(entryrate, termination_criteria, termination_val
     if (termination_criteria == "Time limit") {
         # If specify time limit then number of individuals is rate * time limit, plus an error margin
         initial_n <- ERROR_MARGIN * (entryrate * termination_value)
-    } else if (termination_criteria == "Number of individuals") {
+    } else if (termination_criteria == "Individual limit") {
         # Otherwise can specify number of individuals directly
         initial_n <- termination_value
     } else {
@@ -257,19 +269,28 @@ get_attr_names <- function(str) {
 
 }
 
-calculate_parameters <- function(params, newdata) {
+calculate_parameters <- function(params, newdata, n_entries) {
     # Params: A vector of parameter specifications in string format, i.e.:
     # 'exp(3 + 0.25 * [age] + 0.43 * [sex])'
     # Newdata: A data frame containing the attributes that may be referred to in
     # raw_params
+    # n_entries: The number of people being observed in the simulation. Should be equal to
+    #   newdata, but newdata may be 0 if just the baseline survival curves are being built
+    #   so the number of individuals is explicitly provided in this case.
     # Returns the numeric values of the distribution parameters as a data frame with
     # e #events rows and p #params columns
     # Calculate parameters from new data
     new_params <- sapply(params, function(p) gsub("\\[", "newdata\\[\\['", p))
     new_params <- sapply(new_params, function(p) gsub("\\]", "'\\]\\]", p))
     new_params <- sapply(new_params, function(p) parse(text=p))
-    param_vals <- sapply(new_params, function(p) eval(p))
+    param_vals <- lapply(new_params, function(p) eval(p))
+
     params_df <- data.frame(param_vals)
+
+    if (nrow(params_df) != n_entries) {
+        # Replicate rows
+        params_df <- params_df[rep(row.names(params_df), ceiling(n_entries / nrow(params_df))), ]
+    }
     colnames(params_df) <- paste0('p', seq(ncol(params_df)))
     params_df
 }

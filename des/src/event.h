@@ -5,10 +5,12 @@ class Simulation;
 
 class Event {
     public:
-        Event(int individual_id, int state, double time);
-        const int state_entering;
-        const double time;
-        const int individual_id;
+        Event(int, int, double, double, double);
+        int state_entering;
+        double time;
+        int individual_id;
+        double sim_entry;
+        double prev_state_entry;
         void processEvent(Simulation* sim);
 };
 

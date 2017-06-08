@@ -45,6 +45,7 @@ output$transprobsbuttons <- renderUI({
 
     } else {
         item_list[[3]] <- br()
+        # TODO Display text that "no params selected in previous tab" when want to estimate params from data and no attrs are available
         item_list[[4]] <- actionButton("paramsestimatebutton", "Estimate parameters from data")
     }
     do.call(tagList, item_list)
@@ -201,12 +202,11 @@ observeEvent(input$transprobbutton, {
         print(paste("Error: Please specify all levels for the following covariates:", paste(names(attrs[missing_cat_levels]), collapse=', ')))
     } else if (any(params == '')) {
         print("Error: Please specify parameter(s).")
-    }
-
-    else {
+    } else {
         transitions[[trans_name]]$draw <- create_eventtime_draw(dist)
         transitions[[trans_name]]$params <- params
         transitions[[trans_name]]$dist <- dist
+        # TODO The draw function should use truncation too!
         # Reset the parameter specification area in preparation for next transition
         output$addtransarea <- renderUI({NULL})
     }
@@ -296,9 +296,9 @@ observeEvent(input$estimateparamsbutton, {
     winning_dist <- TIME_DISTS[best_mod]
     winning_mod <- mods[[best_mod]]
     params_str <- create_param_string_from_mod(DISTS[[winning_dist]], winning_mod, cat_vars)
-    transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist)
     transitions[[trans_name]]$params <- params_str
     transitions[[trans_name]]$dist <- winning_dist
+    transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist)
 
     # Reset specification of transition probabilities area for next transition
     output$addtransarea <- renderUI({NULL})
