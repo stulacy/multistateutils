@@ -12,7 +12,7 @@ output$seltransprobs <- renderUI({
 
     choices <- setNames(vals[ord], labels[ord])
 
-    selectInput("transprob", "Transition", choices=choices)
+    selectInput("transnumber", "Transition", choices=choices)
 
 })
 
@@ -22,14 +22,14 @@ output$transprobsbuttons <- renderUI({
     if (length(trans) < 1)
         return()
 
-    if (is.null(input$transprob) || input$transprob == '')
+    if (is.null(input$transnumber) || input$transnumber == '')
         return()
 
     item_list <- list()
     item_list[[1]] <- actionButton("paramsspecifybutton", "Specify parameters manually")
     item_list[[2]] <- br()
 
-    this_trans <- trans[sapply(trans, function(t) t$index == input$transprob)][[1]]
+    this_trans <- trans[sapply(trans, function(t) t$index == input$transnumber)][[1]]
     from_state <- states()[this_trans$from]
     to_state <- states()[this_trans$to]
 
@@ -68,7 +68,7 @@ allowed_attrs <- reactive({
         if (attr$type == 'Continuous') {
             a
         } else if (attr$type == 'Categorical') {
-            paste(a, attr$levels[-1], sep='.')  # TODO Shouldn't levels be stored in attributes rather than getting it from raw data?!
+            paste(a, attr$levels[-1], sep='.')
         }
     })
 
@@ -180,11 +180,11 @@ addtransprobsbutton <- renderUI({
     if (length(reactiveValuesToList(transitions)) < 1)
         return()
 
-    actionButton("transprobbutton", "Update")
+    actionButton("manualaddtrans", "Update")
 })
 
-observeEvent(input$transprobbutton, {
-    index <- input$transprob
+observeEvent(input$manualaddtrans, {
+    index <- input$transnumber
     trans_name <- names(transitions)[sapply(names(transitions), function(n) transitions[[n]]$index == index)]
     dist <- input$seldist
     params <- sapply(seq_along(DISTS[[dist]]$params), function(i) input[[paste0('param', i)]])
@@ -206,7 +206,8 @@ observeEvent(input$transprobbutton, {
         transitions[[trans_name]]$draw <- create_eventtime_draw(dist)
         transitions[[trans_name]]$params <- params
         transitions[[trans_name]]$dist <- dist
-        # TODO The draw function should use truncation too!
+        # TODO Add coefficients
+
         # Reset the parameter specification area in preparation for next transition
         output$addtransarea <- renderUI({NULL})
     }
@@ -243,7 +244,7 @@ var_checkbox <- renderUI({
 observeEvent(input$estimateparamsbutton, {
 
     # Obtain details of transition under interest
-    trans_index <- input$transprob
+    trans_index <- input$transnumber
     trans_name <- names(transitions)[sapply(names(transitions), function(n) transitions[[n]]$index == trans_index)]
 
     # Obtain covariate names from checkboxes and names of categorical variables
@@ -297,6 +298,7 @@ observeEvent(input$estimateparamsbutton, {
     winning_mod <- mods[[best_mod]]
     params_str <- create_param_string_from_mod(DISTS[[winning_dist]], winning_mod, cat_vars)
     transitions[[trans_name]]$params <- params_str
+    transitions[[trans_name]]$coefs <- get_coefs_from_mod(DISTS[[winning_dist]], winning_mod, cat_vars)
     transitions[[trans_name]]$dist <- winning_dist
     transitions[[trans_name]]$draw <- create_eventtime_draw(winning_dist)
 

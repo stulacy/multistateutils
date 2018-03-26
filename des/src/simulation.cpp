@@ -1,7 +1,8 @@
 #include "simulation.h"
 #include "event.h"
 
-Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<double> times): states(), clock(0), event_queue() {
+Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times):
+    clock(0), patient_attributes(attrs) {
 
     // Create the list of states with their associated transitions
     int nstates, cell;
@@ -25,9 +26,9 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, std::vector<dou
             ++trans_num;
 
             trans_name  = as<std::string>(this_trans["name"]);
-            trans_params = as<NumericMatrix>(this_trans["params"]);
 
-            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, trans_params)));
+            // TODO Extract transition coefficients and pass appropriate values into Transition factory
+            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]))));
         }
         states.emplace_back(std::move(nstate));
     }
@@ -64,6 +65,10 @@ void Simulation::add_event(Event newEvent) {
 
 State* Simulation::get_state(int index) {
     return &states[index];
+}
+
+Rcpp::NumericVector Simulation::get_patient_attrs(int id) {
+    return patient_attributes(id, _);
 }
 
 void Simulation::add_history(std::tuple<int, int, double> curr_state) {
