@@ -93,7 +93,7 @@ output$plottingeventdraws <- renderPlot({
     labels <- sapply(vars, function(t) paste(states()[t$from], states()[t$to], sep='-'))
 
     plots <- lapply(vars, function(v) {
-        params <- t(calculate_parameters(v$params, newdf_numeric))
+        params <- t(calculate_parameters(v$params, newdf_numeric, 1))  # TODO What is this last paramter used for?
         vals <- v$draw(NUM_TIMES_DRAWS_PREVIEW, params)
         ggplot(data.frame(x=vals), aes(x=x)) +
                 geom_histogram(fill='white', colour='black') +
