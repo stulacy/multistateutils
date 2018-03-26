@@ -11,7 +11,7 @@ class State {
     public:
         const int num;
         State(int num);
-        std::pair<int, double> get_next_transition(int, double, double);
+        std::pair<int, double> get_next_transition(Rcpp::NumericVector, double, double);
         void add_transition(std::unique_ptr<Transition>);
         bool is_transient() const;
 

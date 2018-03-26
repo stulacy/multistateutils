@@ -16,7 +16,7 @@ bool State::is_transient() const {
     return (outgoing_transitions.size() > 0);
 }
 
-std::pair<int, double> State::get_next_transition(int id, double time_since_entry, double sojourn_time) {
+std::pair<int, double> State::get_next_transition(Rcpp::NumericVector attributes, double time_since_entry, double sojourn_time) {
     if (is_transient()) {
         int winning_state;
         double lowest_event_time;
@@ -27,7 +27,7 @@ std::pair<int, double> State::get_next_transition(int id, double time_since_entr
 
         // Iterate over all transitions and obtain the event time
         for (auto it = outgoing_transitions.begin(); it != outgoing_transitions.end(); ++it) {
-            this_event_time = std::max(MINIMUM_EVENT_TIME, (*it)->draw_event_time(id, time_since_entry, sojourn_time));
+            this_event_time = std::max(MINIMUM_EVENT_TIME, (*it)->draw_event_time(attributes, time_since_entry, sojourn_time));
             if (this_event_time < lowest_event_time) {
                 lowest_event_time = this_event_time;
                 winning_state = (*it)->to;

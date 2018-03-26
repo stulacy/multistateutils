@@ -3,40 +3,70 @@
 using namespace Rcpp;
 
 // Constructor
-Transition::Transition(std::string const& name, int to, NumericMatrix params):
-    name(name), to(to), params(params) {};
+Transition::Transition(std::string const& name, int to, List in_params):
+    name(name), to(to)  {
 
-double Transition::draw_event_time(int id, double time_since_start, double sojourn_time) const {
+    // Create a vector of pairs to handle each covariate
+    for (int i = 0; i < in_params.size(); i++) {
+        List param_list = as<List>(in_params[i]);
+        std::vector<int> indices = as<std::vector<int>>(param_list[0]);
+        std::vector<double> coefs = as<std::vector<double>>(param_list[1]);
+
+        std::vector<std::pair<int, double>> target;
+        target.reserve(indices.size());
+
+        std::transform(indices.begin(), indices.end(),
+                       coefs.begin(),
+                       std::back_inserter(target),
+                       [](int a, double b) {
+                           return std::make_pair(a, b);
+                       });
+
+        params.push_back(target);
+    }
+
+};
+
+double Transition::draw_event_time(Rcpp::NumericVector attributes, double time_since_start, double sojourn_time) const {
     double drawn_time;
-    drawn_time = draw(params(id, _), time_since_start, sojourn_time);
+
+    std::vector<double> param_values;
+    for (auto param_it : params) {
+        param_values.emplace_back(std::accumulate(param_it.begin(), param_it.end(), 0.0,
+                                                  [&attributes](double curr_sum, std::pair<int, double> const& b)->double {
+                                                        return curr_sum + attributes[b.first] * b.second;
+                                           }));
+    }
+
+    drawn_time = draw(param_values, time_since_start, sojourn_time);
     return drawn_time;
 }
 
-double WeibullTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+double WeibullTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     return as<double>(rweibull(1, row[1], row[0]));
 }
-double LogNormalTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+double LogNormalTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     return as<double>(rlnorm(1, row[0], row[1]));
 }
-double LogLogisticTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+double LogLogisticTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     return as<double>(rlnorm(1, row[0], row[1]));
 }
-double GammaTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+double GammaTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     return as<double>(rgamma(1, row[1], row[0]));
 }
-double GompertzTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+double GompertzTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     return as<double>(rlnorm(1, row[1], row[0]));
 }
-double ExpTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
+double ExpTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     return as<double>(rexp(1, row[0]));
 }
-double OldAgeTransition::draw(NumericMatrix::ConstRow row, double time_since_start, double sojourn_time) const {
-    double time_to_death = 100*365.25-(row[0] + time_since_start);
+double OldAgeTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
+    double time_to_death = 36525-(row[0] + time_since_start);
     return time_to_death;
 }
 
 // Factory method
-std::unique_ptr<Transition> Transition::create_transition(std::string const& dist, int to, NumericMatrix params) {
+std::unique_ptr<Transition> Transition::create_transition(std::string const& dist, int to, List params) {
     if (dist == "weibull") {
         return std::unique_ptr<Transition>(new WeibullTransition(dist, to, params));
     } else if (dist == "lnorm") {

@@ -7,56 +7,56 @@ using namespace Rcpp;
 
 class Transition {
     public:
-        Transition(std::string const&, int, NumericMatrix);
-        static std::unique_ptr<Transition> create_transition(std::string const&, int, NumericMatrix);
-        double draw_event_time(int, double, double) const;
-        virtual double draw(NumericMatrix::ConstRow, double, double) const = 0;
+        Transition(std::string const&, int, List);
+        static std::unique_ptr<Transition> create_transition(std::string const&, int, List);
+        double draw_event_time(Rcpp::NumericVector, double, double) const;
+        virtual double draw(std::vector<double>, double, double) const = 0;
 
         const std::string name;
         const int to;
-        const NumericMatrix params;
+        std::vector< std::vector< std::pair<int, double> > > params;
 };
 
 class WeibullTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 class LogNormalTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow row, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 class LogLogisticTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow row, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 class GammaTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow row, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 class GompertzTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow row, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 class ExpTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow row, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 class OldAgeTransition: public Transition {
     using Transition::Transition;
     public:
-        double draw(NumericMatrix::ConstRow row, double, double) const;
+        double draw(std::vector<double>, double, double) const;
 };
 
 #endif
