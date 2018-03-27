@@ -9,4 +9,4 @@ Currently, it is mostly used as the simulation engine behind a web-app written i
 
 Install the package from an R instance with `devtools::install_github('stulacy/RDES')`. 
 
-If you are interested in using this simulation please get in touch with me (`stuart.lacy@gmail.com`), as firstly you may need some assistance since the package isn't that well documented, but I'd also be very interested to hear any feedback to help make it more user-friendly so I can publicly release it.
+If you are interested in using this simulation please get in touch with me (`stuart.lacy@gmail.com`), as firstly you may need some assistance since the package isn't that well documented, but I'd also be very interested to hear any feedback to help make it more user-friendly so I can publicly release it. Currently the only documentation is in *tests/example.R*, which provides an example call.
