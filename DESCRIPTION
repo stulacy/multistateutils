@@ -1,0 +1,11 @@
+Package: rdes
+Type: Package
+Title: Discrete event simulation for multi-state modelling
+Version: 1.0.0
+Date: 2018-03-27
+Author: Stuart Lacy
+Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
+Description: rdes provides a fast implementation of a discrete event simulation, allowing for the estimation of transition probabilities in multi-state modelling where transition hazards are functions of standard parametric families. It has been designed for healthcare uses but will work with any model where parametric models can be used to model transition rates.
+License: GPL (>= 2)
+Imports: Rcpp (>= 0.12.10)
+LinkingTo: Rcpp
