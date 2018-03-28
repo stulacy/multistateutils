@@ -27,7 +27,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
 
             trans_name  = as<std::string>(this_trans["name"]);
 
-            // TODO Extract transition coefficients and pass appropriate values into Transition factory
+            // Extract transition coefficients and pass appropriate values into Transition factory
             nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]))));
         }
         states.emplace_back(std::move(nstate));
@@ -37,7 +37,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
     // Populate event list with initial entries into the system
     int id;
     std::vector<double>::iterator it;
-    int first_state = 0; // assumption that everyone enters at state 0
+    int first_state = 0; // TODO Fix assumption that everyone enters at state 0
 
     for (id=0, it = times.begin(); it != times.end(); ++it, ++id) {
         add_event(Event(id, first_state, (*it), (*it), (*it)));

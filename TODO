@@ -1,0 +1,1 @@
+  - Fix assumption in simulation.cpp that everyone enters at state 0
