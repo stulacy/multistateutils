@@ -9,3 +9,4 @@ Description: rdes provides a fast implementation of a discrete event simulation,
 License: GPL (>= 2)
 Imports: Rcpp (>= 0.12.10)
 LinkingTo: Rcpp
+RoxygenNote: 6.0.1
