@@ -41,9 +41,6 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
 
     int first_state = 0; // TODO Fix assumption that everyone enters at state 0
 
-    std::cout << "Size of initial times" << times.size() << "\n";
-    std::cout << "Size of initial states" << start_states.size() << "\n";
-
     if (times.size() != start_states.size()) {
         // TODO Should raise error
         Rcpp::Rcerr << "Error. starting states does not have the same length as starting times (" << start_states.size() << " and " << times.size() << " respectively).\n";

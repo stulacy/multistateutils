@@ -42,7 +42,7 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N) {
 #' @param M Number of times to run the simulations in order to obtain confidence estimates
 #' @export
 #' @return A list for each individual with items for length of stay and transition probabilities.
-predict_transitions <- function(models, newdata, trans_mat, times=NULL, states=NULL, start_times=0, start_states=NULL, N=10000, M=1000) {
+predict_transitions <- function(models, newdata, trans_mat, times, states=NULL, start_times=0, start_states=NULL, N=10000, M=1000) {
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
@@ -70,22 +70,40 @@ predict_transitions <- function(models, newdata, trans_mat, times=NULL, states=N
         paste(paste(colnames(label_df), label_df[i, ], sep='='), collapse=',')
     })
 
-    res
-
     # TODO Work out best data structure to hold all results
 
-    #if (!is.null(times)) {
-    #    # TODO Calculate state transition probabilities at times
-    #}
-#
-    #if (is.null(states)) {
-    #    states <- 1:ncol(trans_mat)
-    #}
-#
-    ## Convert state names to indices
-    #if (is.character(states)) {
-    #    states <- match(states, colnames(trans_mat))
-    #}
+    if (!is.null(times)) {
+        # TODO Calculate state transition probabilities at times
+    }
+
+    # Convert state names to (zero-based) indices
+    if (is.character(states)) {
+        states <- match(states, colnames(trans_mat)) - 1
+    }
+
+    if (is.character(states)) {
+        start_states <- match(start_states, colnames(trans_mat)) - 1
+    }
+
+    # Will calculate transition probabilities for all starting and ending states unless
+    # provided
+    if (is.null(states)) {
+        states <- seq(ncol(trans_mat)) - 1
+    }
+
+    if (is.null(start_states)) {
+        start_states <- seq(ncol(trans_mat)) - 1
+    }
+
+    resDT <- data.table::rbindlist(lapply(res, data.table::as.data.table), idcol='individual')
+    data.table::setnames(resDT, c('individual', 'id', 'state', 'time'))
+
+    # Find state was in at start time
+    browser()
+
+
+    resDT
+
 
     # TODO Calculate length of stay for each state in 'states'
 

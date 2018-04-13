@@ -38,8 +38,8 @@ form_model_matrix <- function(dataframe, models) {
 
     # Obtain transitions as list as required above. Need data in matrix form first. Will generate this for the entire dataset, containing
     # all covariates that are used in any transition.
-    newform <- as.formula(paste("1 ~", paste(cov_names, collapse='+')))
-     model.matrix(newform, dataframe)
+    newform <- as.formula(paste("~", paste(cov_names, collapse='+')))
+    model.matrix(newform, dataframe)
 }
 
 DISTS <- list("weibull"=c("scale", "shape"),
