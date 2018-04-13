@@ -6,8 +6,8 @@
 using namespace Rcpp;
 
 // desCpp
-NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericMatrix individual_attributes, NumericVector initial_times);
-RcppExport SEXP _rdes_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP, SEXP individual_attributesSEXP, SEXP initial_timesSEXP) {
+NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericMatrix individual_attributes, NumericVector initial_times, NumericVector start_states);
+RcppExport SEXP _rdes_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP, SEXP individual_attributesSEXP, SEXP initial_timesSEXP, SEXP start_statesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -15,13 +15,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerMatrix >::type transmat(transmatSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type individual_attributes(individual_attributesSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type initial_times(initial_timesSEXP);
-    rcpp_result_gen = Rcpp::wrap(desCpp(transitions, transmat, individual_attributes, initial_times));
+    Rcpp::traits::input_parameter< NumericVector >::type start_states(start_statesSEXP);
+    rcpp_result_gen = Rcpp::wrap(desCpp(transitions, transmat, individual_attributes, initial_times, start_states));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rdes_desCpp", (DL_FUNC) &_rdes_desCpp, 4},
+    {"_rdes_desCpp", (DL_FUNC) &_rdes_desCpp, 5},
     {NULL, NULL, 0}
 };
 

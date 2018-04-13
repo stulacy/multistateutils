@@ -1,7 +1,7 @@
 #include "simulation.h"
 #include "event.h"
 
-Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times):
+Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times, std::vector<int> start_states):
     clock(0), patient_attributes(attrs) {
 
     // Create the list of states with their associated transitions
@@ -13,6 +13,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
 
     nstates = trans_mat.nrow();
 
+    // Setup states
     for (int source=0; source < nstates; source++) {
         State nstate = State(source);
         for (int dest=0; dest < nstates; dest++) {
@@ -33,14 +34,24 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
         states.emplace_back(std::move(nstate));
     }
 
-
     // Populate event list with initial entries into the system
-    int id;
-    std::vector<double>::iterator it;
+    int id, i;
+    //std::vector<double>::iterator it;
+    double initial_time;
+
     int first_state = 0; // TODO Fix assumption that everyone enters at state 0
 
-    for (id=0, it = times.begin(); it != times.end(); ++it, ++id) {
-        add_event(Event(id, first_state, (*it), (*it), (*it)));
+    std::cout << "Size of initial times" << times.size() << "\n";
+    std::cout << "Size of initial states" << start_states.size() << "\n";
+
+    if (times.size() != start_states.size()) {
+        // TODO Should raise error
+        Rcpp::Rcerr << "Error. starting states does not have the same length as starting times (" << start_states.size() << " and " << times.size() << " respectively).\n";
+    }
+
+    for (id=0, i=0; i < times.size(); ++id, ++i) {
+        initial_time = times[i];
+        add_event(Event(id, start_states[i], initial_time, initial_time, initial_time));
     }
 }
 

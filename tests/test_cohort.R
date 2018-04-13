@@ -1,6 +1,8 @@
 # Create dummy values for testing simulation
 set.seed(17)
 num <- 10
+
+# TODO Inputs into functions should be list of flexsurv models that gets converted into the following format!
 transitions <- list(list(name='weibull',
                          coefs= list(list(c(1, 3, 4) - 1, # These are the indices in the attributes matrix that these coefficients correspond to, 0-indexed.
                                           c(7.52, 0.53, 0.32) # These are the coefficient values
@@ -41,4 +43,4 @@ trans_mat[is.na(trans_mat)] <- 0              # Ensure that the transition matri
 initial_times <- cumsum(rexp(num, rate=0.01))  # Specify entry times into the simulation
 
 # This line runs the simulation. It has to be commented out to allow the package to build correctly.
-#desCpp(transitions, trans_mat, attributes, initial_times)
+cohort_simulation(transitions, attributes, trans_mat, start_times=initial_times)

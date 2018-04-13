@@ -37,28 +37,28 @@ double Transition::draw_event_time(Rcpp::NumericVector attributes, double time_s
                                                         return curr_sum + attributes[b.first] * b.second;
                                            }));
     }
-
     drawn_time = draw(param_values, time_since_start, sojourn_time);
+
     return drawn_time;
 }
 
 double WeibullTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
-    return as<double>(rweibull(1, row[1], row[0]));
+    return as<double>(rweibull(1, std::exp(row[1]), std::exp(row[0])));
 }
 double LogNormalTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
-    return as<double>(rlnorm(1, row[0], row[1]));
+    return as<double>(rlnorm(1, row[0], std::exp(row[1])));
 }
 double LogLogisticTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
-    return as<double>(rlnorm(1, row[0], row[1]));
+    return as<double>(rlnorm(1, std::exp(row[0]), std::exp(row[1])));
 }
 double GammaTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
-    return as<double>(rgamma(1, row[1], row[0]));
+    return as<double>(rgamma(1, std::exp(row[1]), std::exp(row[0])));
 }
 double GompertzTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
-    return as<double>(rlnorm(1, row[1], row[0]));
+    return as<double>(rlnorm(1, std::exp(row[1]), row[0]));
 }
 double ExpTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
-    return as<double>(rexp(1, row[0]));
+    return as<double>(rexp(1, std::exp(row[0])));
 }
 double OldAgeTransition::draw(std::vector<double> row, double time_since_start, double sojourn_time) const {
     double time_to_death = 36525-(row[0] + time_since_start);
