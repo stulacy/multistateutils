@@ -21,7 +21,7 @@ cohort_simulation <- function(models, newdata, trans_mat, start_times=NULL) {
     # TODO Need function to obtain transition list from list of models
     transitions <- models
     
-    mat <- model.matrix(~., newdata)
+    mat <- stats::model.matrix(~., newdata)
     
     if (!is.null(start_times) & length(start_times) != nrow(newdata) & length(start_times) != 1) {
         stop(paste("Error: Please either provide a single value, or as many values as", 

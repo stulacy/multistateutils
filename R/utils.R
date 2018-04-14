@@ -1,6 +1,6 @@
 # Function to obtain the transition list per transition model as required
 obtain_model_coef <- function(mod, attrs) {
-    all_coefs <- coef(mod)
+    all_coefs <- stats::coef(mod)
     dist <- mod$dlist$name
     dist <- gsub("\\.[a-zA-Z]+", "", dist)
     attr_names <- colnames(attrs)
@@ -38,8 +38,8 @@ form_model_matrix <- function(dataframe, models) {
 
     # Obtain transitions as list as required above. Need data in matrix form first. Will generate this for the entire dataset, containing
     # all covariates that are used in any transition.
-    newform <- as.formula(paste("~", paste(cov_names, collapse='+')))
-    model.matrix(newform, dataframe)
+    newform <- stats::as.formula(paste("~", paste(cov_names, collapse='+')))
+    stats::model.matrix(newform, dataframe)
 }
 
 DISTS <- list("weibull"=c("scale", "shape"),

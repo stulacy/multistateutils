@@ -4,10 +4,19 @@
 \alias{individual_simulation}
 \title{Runs an individual level simulation}
 \usage{
-individual_simulation(models, newdata, trans_mat, N = NULL)
+individual_simulation(transitions, newdata_mat, trans_mat, N)
 }
 \arguments{
+\item{transitions}{A list of transitions as required by \code{desCpp}.}
+
+\item{newdata_mat}{New data already in data matrix format as a single row}
+
+\item{trans_mat}{Transition matrix}
+
 \item{N}{Number of times to replicate this individual.}
+}
+\value{
+Usual output from DES, with state entry times
 }
 \description{
 Runs an individual level simulation
