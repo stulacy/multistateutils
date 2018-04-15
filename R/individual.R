@@ -44,13 +44,19 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N) {
 #' @importFrom magrittr '%>%'
 #' @import data.table 
 predict_transitions <- function(models, newdata, trans_mat, times,
-                                start_time=0,  N=10000, M=1000) {
+                                start_time=0,  N=10000, M=1000, ci=FALSE) {
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
                     nrow(trans_mat), " and ",
                     ncol(trans_mat), ")."))
     }
+    
+    if (any(start_time > times))
+        stop("Error: 'start_time' must be earlier than any value in 'times'.")
+    
+    # TODO More guards! Check nature of trans_mat, check that covariates required
+    # by all models are in newdata
     
     # Required by CRAN checks
     id <- NULL
@@ -61,9 +67,6 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     from <- NULL
     individual <- NULL
     
-    # TODO More guards! Check nature of trans_mat, check that covariates required
-    # by all models are in newdata
-
     # Obtain attributes as a matrix
     attr_mat <- form_model_matrix(newdata, models)
 
@@ -128,8 +131,8 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     colnames(proportions_df)[ (ncol(proportions_df) - nstates + 1) : ncol(proportions_df) ] <- state_names
     proportions_df
 
-    # TODO Calculate length of stay for each state in 'states'
-
-    # TODO Add in repeating whole thing M times to obtain standard errors
+    # TODO Add in repeating whole thing M times to obtain standard errors. Could be easier to just
+    # use flexsurv's normbootn function
+    #normboot.flexsurvreg(models[[1]], B=3, transform = T, raw=T)
 
 }
