@@ -1,5 +1,4 @@
   - Individual simulation:
-    - Allow for time-dependent covariates (tcovs in pmatrix.simfs)
     - Get resampling for CIs working
     - Make function for length of stay
     - See if works for clock-forward

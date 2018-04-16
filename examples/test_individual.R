@@ -32,7 +32,6 @@ for (tr in 1:3) {
                                     subset=(trans==tr),
                                     data=df_long,
                                     dist='weibull')
-
     }
 }
 
@@ -44,7 +43,7 @@ newdata <- data.frame(sex=factor('M', levels=c('F', 'M')),
 trans_mat <- mstate::trans.illdeath()
 
 # This line runs the simulation. It has to be commented out to allow the package to build correctly.
-foo <- predict_transitions(models, newdata, trans_mat, times=seq(3)*365.25, N=10000)
+foo <- predict_transitions(models, newdata, trans_mat, times=seq(3)*365.25, start_times=0)
 foo
 
 # Let's get pmatrix.simfs for comparison. Note how need to run this separately for each time point!

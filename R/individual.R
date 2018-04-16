@@ -40,9 +40,9 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs)
 #' @param trans_mat Transition matrix, such as that used in \code{mstate}.
 #' @param times Times at which to estimate transition probabilities. If not provided then doesn't estimate
 #'   transition probabilities, just length of stay.
-#' @param start_time Conditional time for transition probability.
+#' @param start_times Conditional time for transition probability.
 #' @param tcovs As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
-#'   incremented by the system clock at each transition, such as age when modelled as age at state entry.
+#'   incremented by the simulation clock at each transition, such as age when modelled as age at state entry.
 #' @param N Number of times to repeat the individual
 #' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
 #' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
@@ -52,7 +52,7 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs)
 #' @importFrom magrittr '%>%'
 #' @import data.table
 predict_transitions <- function(models, newdata, trans_mat, times,
-                                start_time=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE) {
+                                start_times=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE) {
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
@@ -60,8 +60,8 @@ predict_transitions <- function(models, newdata, trans_mat, times,
                     ncol(trans_mat), ")."))
     }
 
-    if (any(start_time > times))
-        stop("Error: 'start_time' must be earlier than any value in 'times'.")
+    if (any(sapply(start_times, function(s) s > times)))
+        stop("Error: 'start_times' must be earlier than any value in 'times'.")
 
     # TODO More guards! Check nature of trans_mat, check that covariates required
     # by all models are in newdata
@@ -70,9 +70,11 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     id <- NULL
     state <- NULL
     time <- NULL
+    start_time <- NULL
+    end_time <- NULL
     individal <- NULL
     num_start <- NULL
-    from <- NULL
+    start_state <- NULL
     individual <- NULL
 
     # Obtain attributes as a matrix
@@ -107,25 +109,27 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
     # Find state was in at start time
     # Obtain state that a person is in at starting times
-    start_states <- resDT[, .(from = state[findInterval(start_time, time)]),by=.(individual, id)]
-
+    start_states <- resDT[, .(start_state = state[findInterval(start_times, time)]),by=.(individual, id)]
+    start_states[, start_time := start_times ]
+    
     # Obtain state that a person is in at all times want to calculate probabilities for
-    end_states <- resDT[, .(end = state[findInterval(times, time)]), by=.(individual, id)]
-    end_states[, time := times ]
-
+    end_states <- resDT[, .(end_state = state[findInterval(times, time)]), by=.(individual, id)]
+    end_states[, end_time := times ]
+    
     # Join the two tables together
-    combined <- start_states[end_states, on=c('individual', 'id')]
+    combined <- merge(start_states, end_states, on=c('individual', 'id'), allow.cartesian=TRUE)
 
     # Calculate transition probabilities
-    counts <- data.table::dcast(combined, individual + time + from ~ end, value.var='time', length)
-    end_state_names <- colnames(counts)[4:ncol(counts)]  # First 3 rows are start_state, time, individual
+    counts <- data.table::dcast(combined, individual + start_time + end_time + start_state ~ end_state, 
+                                value.var='end_time', length)
+    end_state_names <- colnames(counts)[5:ncol(counts)]  # First 4 columns are individual, start_time, end_time, start_state
     # Calculate the number in the starting state at specified starting time
-    counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=.(from, time, individual)]
+    counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=.(start_time, end_time, start_state, individual)]
 
     # Calculate proportions
     proportions <- counts[, lapply(.SD, function(x) x / num_start),
                           .SDcols=end_state_names,
-                          by=.(individual, time, from)]
+                          by=.(individual, start_time, end_time, start_state)]
     proportions_df <- as.data.frame(proportions)
 
     # Split individual into columns
@@ -137,9 +141,9 @@ predict_transitions <- function(models, newdata, trans_mat, times,
                                      function(x) gsub("[[:alnum:]]+=", "", x))
 
     proportions_df <- proportions_df %>%
-                            dplyr::mutate(from = factor(from,
-                                                        levels=seq_along(state_names)-1,
-                                                        labels=state_names))
+                            dplyr::mutate(start_state = factor(start_state,
+                                                               levels=seq_along(state_names)-1,
+                                                               labels=state_names))
     colnames(proportions_df)[ (ncol(proportions_df) - nstates + 1) : ncol(proportions_df) ] <- state_names
     proportions_df
 

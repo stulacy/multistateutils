@@ -4,7 +4,7 @@
 \alias{predict_transitions}
 \title{Estimates transition probabilities and length of stay}
 \usage{
-predict_transitions(models, newdata, trans_mat, times, start_time = 0,
+predict_transitions(models, newdata, trans_mat, times, start_times = 0,
   tcovs = NULL, N = 1e+05, M = 1000, ci = FALSE)
 }
 \arguments{
@@ -18,10 +18,10 @@ required by models.}
 \item{times}{Times at which to estimate transition probabilities. If not provided then doesn't estimate
 transition probabilities, just length of stay.}
 
-\item{start_time}{Conditional time for transition probability.}
+\item{start_times}{Conditional time for transition probability.}
 
 \item{tcovs}{As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
-incremented by the system clock at each transition, such as age when modelled as age at state entry.}
+incremented by the simulation clock at each transition, such as age when modelled as age at state entry.}
 
 \item{N}{Number of times to repeat the individual}
 
