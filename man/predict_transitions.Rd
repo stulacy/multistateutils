@@ -5,7 +5,7 @@
 \title{Estimates transition probabilities and length of stay}
 \usage{
 predict_transitions(models, newdata, trans_mat, times, start_time = 0,
-  N = 10000, M = 1000)
+  tcovs = NULL, N = 1e+05, M = 1000, ci = FALSE)
 }
 \arguments{
 \item{models}{List of \code{flexsurvreg} objects.}
@@ -20,9 +20,14 @@ transition probabilities, just length of stay.}
 
 \item{start_time}{Conditional time for transition probability.}
 
+\item{tcovs}{As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
+incremented by the system clock at each transition, such as age when modelled as age at state entry.}
+
 \item{N}{Number of times to repeat the individual}
 
-\item{M}{Number of times to run the simulations in order to obtain confidence estimates}
+\item{M}{Number of times to run the simulations in order to obtain confidence interval estimates.}
+
+\item{ci}{Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.}
 }
 \value{
 A list for each individual with items for length of stay and transition probabilities.

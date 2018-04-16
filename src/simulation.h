@@ -15,7 +15,7 @@ struct CompareTimes {
 
 class Simulation {
     public:
-        Simulation(List, IntegerMatrix, NumericMatrix, std::vector<double>, std::vector<int>);
+        Simulation(List, IntegerMatrix, NumericMatrix, std::vector<double>, std::vector<int>, std::vector<int>);
         void add_event(Event);
         void add_history(std::tuple<int, int, double>);
         std::vector < std::tuple<int, int, double> > get_history();

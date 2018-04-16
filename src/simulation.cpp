@@ -1,7 +1,8 @@
 #include "simulation.h"
 #include "event.h"
 
-Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times, std::vector<int> start_states):
+Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times,
+                       std::vector<int> start_states, std::vector<int> tcovs):
     clock(0), patient_attributes(attrs) {
 
     // Create the list of states with their associated transitions
@@ -29,7 +30,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
             trans_name  = as<std::string>(this_trans["name"]);
 
             // Extract transition coefficients and pass appropriate values into Transition factory
-            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]))));
+            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]), tcovs)));
         }
         states.emplace_back(std::move(nstate));
     }
@@ -48,7 +49,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
 
     for (id=0, i=0; i < times.size(); ++id, ++i) {
         initial_time = times[i];
-        add_event(Event(id, start_states[i], initial_time, initial_time, initial_time));
+        add_event(Event(id, start_states[i], initial_time, initial_time));
     }
 }
 
