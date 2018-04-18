@@ -90,13 +90,15 @@ calculate_transition_probabilities <- function(newdata_mat, transitions, trans_m
 #' @param N Number of times to repeat the individual
 #' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
 #' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
+#' @param ci_margin Confidence interval range to use if \code{ci} is set to \code{TRUE}.
 #' @return A list for each individual with items for length of stay and transition probabilities.
 #'
 #' @importFrom magrittr '%>%'
 #' @import data.table
 #' @export
 predict_transitions <- function(models, newdata, trans_mat, times,
-                                start_times=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE) {
+                                start_times=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
+                                ci_margin=0.95) {
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
@@ -130,9 +132,6 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     # of the output probabilities
     label_df <- data.frame(lapply(newdata, as.character), stringsAsFactors=FALSE)
 
-    # Convert models to list of transitions as required
-    transition_list <- lapply(models, obtain_model_coef, attr_mat)
-
     # Ensure that the transition matrix doesn't have NA values, replacing these with 0
     trans_mat[is.na(trans_mat)] <- 0
 
@@ -142,14 +141,49 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
     ###### TODO! End prep function here
 
+    out <- if (!ci) {
+        # Convert models to list of transitions as required
+        transition_list <- lapply(models, obtain_model_coef, attr_mat)
 
-    ###### TODO! Start function here to run simulation and return transition probabilities
-    probs <- calculate_transition_probabilities(attr_mat, transition_list, trans_mat, N, tcovs,
-                                                start_times, times, label_df)
-    probs
+        calculate_transition_probabilities(attr_mat, transition_list, trans_mat, N, tcovs,
+                                           start_times, times, label_df)
+    } else {
+        # This function returns a list with each transition as the highest level item,
+        # then followed by the M simulations. We want the opposite.
+        transition_list <- lapply(models, obtain_model_coef, attr_mat, M=M)
+        transitions_per_sim <- lapply(1:M, function(sim) {
+            lapply(seq_along(models), function(m) {
+                transition_list[[m]][[sim]]
+            })
+        })
+        sims <- lapply(1:M, function(i) {
+              calculate_transition_probabilities(attr_mat, transitions_per_sim[[i]], trans_mat, N, tcovs,
+                                                 start_times, times, label_df)
+        })
+        # Make CIs
+        # Combine all tables together with a simulation index
+        foo <- data.table::rbindlist(lapply(sims, data.table::as.data.table), idcol="simulation")
+        # Form the unique indices and grab state names we're going to need for these summaries
+        keys <- c(colnames(newdata), 'start_time', 'end_time', 'start_state')
+        states <- colnames(trans_mat)
 
-    # TODO Add in repeating whole thing M times to obtain standard errors. Could be easier to just
-    # use flexsurv's normbootn function
-    #normboot.flexsurvreg(models[[1]], B=3, transform = T, raw=T)
+        # Calculate CI limits
+        ci_tail <- (1 - ci_margin) / 2
+        ci_upper <- 1 - ci_tail
+        ci_lower <- ci_tail
+
+        # Obtain summaries
+        means <- foo[, lapply(.SD, mean), .SDcols=states, by=keys]
+        upper <- foo[, lapply(.SD, quantile, ci_upper), .SDcols=states, by=keys]
+        lower <- foo[, lapply(.SD, quantile, ci_lower), .SDcols=states, by=keys]
+
+        # Join together
+        merge1 <- merge(means, lower, by=keys, suffixes=c('_est', paste0('_', ci_lower*100, '%')))
+        merge2 <- merge(merge1, upper, by=keys)
+        colnames(merge2)[match(states, colnames(merge2))] <- paste0(states, paste0('_', ci_upper*100, '%'))
+        as.data.frame(merge2)
+    }
+
+
 
 }
