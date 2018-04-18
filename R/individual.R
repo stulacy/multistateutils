@@ -1,4 +1,6 @@
-#' Runs an individual level simulation
+#' Runs an individual level simulation.
+#'
+#' Returns a data frame with state occupancy times for a single individual.
 #'
 #' @param transitions A list of transitions as required by \code{desCpp}.
 #' @param newdata_mat New data already in data matrix format as a single row
@@ -6,7 +8,7 @@
 #' @param N Number of times to replicate this individual.
 #' @param tcovs Indices of covariates that are time-dependent and need to have the time
 #'   since simulation start added onto them at each intermediate state entry. Default is NULL.
-#' @return Usual output from DES, with state entry times
+#' @return A data frame with entry times for each state that is entered.
 individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs) {
 
     # Form new data into matrix
@@ -28,6 +30,82 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs)
 
     desCpp(transitions, trans_mat, mat_exp, initial_times, start_states_long, tcovs)
 }
+
+
+#' Calculates transition probabilities for multiple individuals.
+#'
+#' Uses an already formatted set of arguments to run the individual level
+#' simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
+#' and derives transition probabilities from the resulting state occupancies.
+#' @inheritParams individual_simulation
+#' @param times Times at which to estimate transition probabilities. If not provided then doesn't estimate
+#'   transition probabilities, just length of stay.
+#' @param covar_values Data frame comprising the covariate values so that neat labels can be formed
+#'   for the output probability data frame..
+#'
+#' @return A data frame in long format with transition probabilities for each individual,
+#' for each starting time, and for each ending time.
+calculate_transition_probabilities <- function(newdata_mat, transitions, trans_mat, N, tcovs,
+                                               start_times, end_times, covar_values) {
+
+    # Calculate state occupancy for each covariate pattern
+    # Run simulation for each individual
+    res <- lapply(1:nrow(newdata_mat), function(i) {
+        individual_simulation(transitions, newdata_mat[i, ], trans_mat, N, tcovs)
+    })
+
+    # Obtain neat labels for results detailing individual attributes
+    names(res) <- sapply(1:nrow(newdata_mat), function(i) {
+        paste(paste(colnames(covar_values), covar_values[i, ], sep='='), collapse=',')
+    })
+
+    state_names <- colnames(trans_mat)
+    nstates <- nrow(trans_mat)
+
+    resDT <- data.table::rbindlist(lapply(res, data.table::as.data.table), idcol='individual')
+    data.table::setnames(resDT, c('individual', 'id', 'state', 'time'))
+
+    # Find state was in at start time
+    # Obtain state that a person is in at starting times
+    start_states <- resDT[, .(start_state = state[findInterval(start_times, time)]),by=.(individual, id)]
+    start_states[, start_time := start_times ]
+
+    # Obtain state that a person is in at all times want to calculate probabilities for
+    end_states <- resDT[, .(end_state = state[findInterval(end_times, time)]), by=.(individual, id)]
+    end_states[, end_time := end_times ]
+
+    # Join the two tables together
+    combined <- merge(start_states, end_states, on=c('individual', 'id'), allow.cartesian=TRUE)
+
+    # Calculate transition probabilities
+    counts <- data.table::dcast(combined, individual + start_time + end_time + start_state ~ end_state,
+                                value.var='end_time', length)
+    end_state_names <- colnames(counts)[5:ncol(counts)]  # First 4 columns are individual, start_time, end_time, start_state
+    # Calculate the number in the starting state at specified starting time
+    counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=.(start_time, end_time, start_state, individual)]
+
+    # Calculate proportions
+    proportions <- counts[, lapply(.SD, function(x) x / num_start),
+                          .SDcols=end_state_names,
+                          by=.(individual, start_time, end_time, start_state)]
+    proportions_df <- as.data.frame(proportions)
+
+    # Split individual into columns
+    covars <- colnames(covar_values)
+    proportions_df <- proportions_df %>%
+        tidyr::separate(individual, sep=',', into=covars)
+
+    proportions_df[covars] <- lapply(proportions_df[covars],
+                                     function(x) gsub("[[:alnum:]]+=", "", x))
+
+    proportions_df <- proportions_df %>%
+                            dplyr::mutate(start_state = factor(start_state,
+                                                               levels=seq_along(state_names)-1,
+                                                               labels=state_names))
+    colnames(proportions_df)[ (ncol(proportions_df) - nstates + 1) : ncol(proportions_df) ] <- state_names
+    proportions_df
+}
+
 
 #' Estimates transition probabilities and length of stay
 #'
@@ -77,8 +155,14 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     start_state <- NULL
     individual <- NULL
 
+    ###### TODO! Make this one function to prepare inputs, so that can reuse it for LoS
+
     # Obtain attributes as a matrix
     attr_mat <- form_model_matrix(newdata, models)
+
+    # Obtain covariate values of new individuals so that can form neat labels
+    # of the output probabilities
+    label_df <- data.frame(lapply(newdata, as.character), stringsAsFactors=FALSE)
 
     # Convert models to list of transitions as required
     transition_list <- lapply(models, obtain_model_coef, attr_mat)
@@ -90,62 +174,13 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     if (!is.null(tcovs))
         tcovs <- match(tcovs, colnames(attr_mat)) - 1  # 0-index for c++
 
-    # Run simulation for each individual
-    res <- lapply(1:nrow(newdata), function(i) {
-        individual_simulation(transition_list, attr_mat[i, ], trans_mat, N, tcovs)
-    })
+    ###### TODO! End prep function here
 
-    # Obtain neat labels for results detailing individual attributes
-    label_df <- data.frame(lapply(newdata, as.character), stringsAsFactors=FALSE)
-    names(res) <- sapply(1:nrow(newdata), function(i) {
-        paste(paste(colnames(label_df), label_df[i, ], sep='='), collapse=',')
-    })
 
-    state_names <- colnames(trans_mat)
-    nstates <- nrow(trans_mat)
-
-    resDT <- data.table::rbindlist(lapply(res, data.table::as.data.table), idcol='individual')
-    data.table::setnames(resDT, c('individual', 'id', 'state', 'time'))
-
-    # Find state was in at start time
-    # Obtain state that a person is in at starting times
-    start_states <- resDT[, .(start_state = state[findInterval(start_times, time)]),by=.(individual, id)]
-    start_states[, start_time := start_times ]
-    
-    # Obtain state that a person is in at all times want to calculate probabilities for
-    end_states <- resDT[, .(end_state = state[findInterval(times, time)]), by=.(individual, id)]
-    end_states[, end_time := times ]
-    
-    # Join the two tables together
-    combined <- merge(start_states, end_states, on=c('individual', 'id'), allow.cartesian=TRUE)
-
-    # Calculate transition probabilities
-    counts <- data.table::dcast(combined, individual + start_time + end_time + start_state ~ end_state, 
-                                value.var='end_time', length)
-    end_state_names <- colnames(counts)[5:ncol(counts)]  # First 4 columns are individual, start_time, end_time, start_state
-    # Calculate the number in the starting state at specified starting time
-    counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=.(start_time, end_time, start_state, individual)]
-
-    # Calculate proportions
-    proportions <- counts[, lapply(.SD, function(x) x / num_start),
-                          .SDcols=end_state_names,
-                          by=.(individual, start_time, end_time, start_state)]
-    proportions_df <- as.data.frame(proportions)
-
-    # Split individual into columns
-    covars <- colnames(newdata)
-    proportions_df <- proportions_df %>%
-        tidyr::separate(individual, sep=',', into=covars)
-
-    proportions_df[covars] <- lapply(proportions_df[covars],
-                                     function(x) gsub("[[:alnum:]]+=", "", x))
-
-    proportions_df <- proportions_df %>%
-                            dplyr::mutate(start_state = factor(start_state,
-                                                               levels=seq_along(state_names)-1,
-                                                               labels=state_names))
-    colnames(proportions_df)[ (ncol(proportions_df) - nstates + 1) : ncol(proportions_df) ] <- state_names
-    proportions_df
+    ###### TODO! Start function here to run simulation and return transition probabilities
+    probs <- calculate_transition_probabilities(attr_mat, transition_list, trans_mat, N, tcovs,
+                                                start_times, times, label_df)
+    probs
 
     # TODO Add in repeating whole thing M times to obtain standard errors. Could be easier to just
     # use flexsurv's normbootn function

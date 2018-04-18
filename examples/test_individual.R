@@ -4,12 +4,12 @@ set.seed(17)
 library(flexsurv)
 library(mstate)
 data(ebmt3)
-trans_mat <- trans.illdeath(c("diagnosis", "pr", "rfs"))
+tmat <- trans.illdeath(c("diagnosis", "pr", "rfs"))
 
 df_long <- msprep(time=c(NA, 'prtime', 'rfstime'),
                   status=c(NA, 'prstat', 'rfsstat'),
                   ebmt3,
-                  trans_mat,
+                  tmat,
                   keep=c('age', 'dissub'))
 
 # Create models
@@ -35,41 +35,41 @@ for (tr in 1:3) {
     }
 }
 
-newdata <- data.frame(sex=factor('M', levels=c('F', 'M')),
+ndata <- data.frame(sex=factor('M', levels=c('F', 'M')),
                      age=factor('20-40', levels=c('<=20', '20-40', '>40')),
                      dissub=factor('CML', levels=c('AML', 'ALL', 'CML')))
 
 
-trans_mat <- mstate::trans.illdeath()
+tmat <- mstate::trans.illdeath()
 
 # This line runs the simulation. It has to be commented out to allow the package to build correctly.
-foo <- predict_transitions(models, newdata, trans_mat, times=seq(3)*365.25, start_times=0)
+foo <- predict_transitions(models, ndata, tmat, times=seq(3)*365.25, start_times=0)
 foo
 
 # Let's get pmatrix.simfs for comparison. Note how need to run this separately for each time point!
 do.call('rbind', lapply(seq(3) * 365.25, function(t) {
-    pmatrix.simfs(models, trans_mat, t=t, newdata=newdata)
+    pmatrix.simfs(models, tmat, t=t, newdata=ndata)
 }))
 
 
 ##### Predicting for multiple individuals at once
-newdata <- data.frame(sex=factor(c('M', 'F'), levels=c('F', 'M')),
+ndata <- data.frame(sex=factor(c('M', 'F'), levels=c('F', 'M')),
                      age=factor(c('20-40', '20-40'), levels=c('<=20', '20-40', '>40')),
                      dissub=factor(c('CML', 'AML'), levels=c('AML', 'ALL', 'CML')))
 
 
-bar <- predict_transitions(models, newdata, trans_mat, times=seq(3)*365.25, N=10000)
+bar <- predict_transitions(models, ndata, tmat, times=seq(3)*365.25, N=10000)
 bar
 
 # NB: pmatrix.simfs doesn't like having multiple lines for newdata
 do.call('rbind', lapply(seq(3) * 365.25, function(t) {
-    pmatrix.simfs(models, trans_mat, t=t, newdata=newdata)
+    pmatrix.simfs(models, tmat, t=t, newdata=ndata)
 }))
 
 ##### Starting (conditional) time
 # Finally note how we can change the conditional time,
 # while pmatrix.simfs doesn't let you change it from zero.
-car <- predict_transitions(models, newdata, trans_mat,
+car <- predict_transitions(models, ndata, tmat,
                            start_time = 100,
                            times=seq(3)*365.25, N=10000)
 car
@@ -88,7 +88,7 @@ ebmt3$age_cont[ebmt3$age == '<=20'] <- runif(num_lt_20, 0, 20)
 df_long_2 <- msprep(time=c(NA, 'prtime', 'rfstime'),
                     status=c(NA, 'prstat', 'rfsstat'),
                     ebmt3,
-                    trans_mat,
+                    tmat,
                     keep=c('age_cont', 'dissub'))
 # Convert time to be in years so can easily add age on
 df_long_2$time_yrs <- df_long_2$time / 365.25
@@ -133,13 +133,13 @@ newdata_entry <- data.frame(sex=factor('M', levels=c('F', 'M')),
                       Tstart_yrs = 0)
 
 # I've had to add in the same 'tcovs' argument as pmatrix.simfs for this to work in RDES
-predict_transitions(models_entry, newdata_entry, trans_mat, times=c(1, 3, 5), tcovs=c('age_entry', 'Tstart_yrs'))
+predict_transitions(models_entry, newdata_entry, tmat, times=c(1, 3, 5), tcovs=c('age_entry', 'Tstart_yrs'))
 
 # NB: Note how the pmatrix.simfs function doesn't take the tcovs into account at all!
 # This looks to be an oversight on the part of Chris Jackson. As a result, it overestimates the risk of dying,
 # whereas my method knows that a person who has survived longer since diagnosis has a reduced risk of dying
 do.call('rbind', lapply(c(1, 3, 5), function(t) {
-    pmatrix.simfs(models_entry, trans_mat, t=t, newdata=newdata_entry, tcovs = c('age_entry', 'Tstart_yrs'))
+    pmatrix.simfs(models_entry, tmat, t=t, newdata=newdata_entry, tcovs = c('age_entry', 'Tstart_yrs'))
 }))
 
 ###### Can we use this with different parametric distributions on each transition
