@@ -144,3 +144,15 @@ do.call('rbind', lapply(c(1, 3, 5), function(t) {
 
 ###### Can we use this with different parametric distributions on each transition
 
+
+###### Bootstrapping
+ndata <- data.frame(sex=factor('M', levels=c('F', 'M')),
+                     age=factor('20-40', levels=c('<=20', '20-40', '>40')),
+                     dissub=factor('CML', levels=c('AML', 'ALL', 'CML')))
+
+tmat <- mstate::trans.illdeath()
+
+
+# This time is pretty close to 100x the time for one person, but let's see if we can improve it.
+system.time(predict_transitions(models, ndata, tmat, times=seq(3)*365.25, start_times=0))
+system.time(predict_transitions(models, ndata, tmat, times=seq(3)*365.25, start_times=0, ci=TRUE, M=100))

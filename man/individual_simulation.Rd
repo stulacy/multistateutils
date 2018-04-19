@@ -2,7 +2,7 @@
 % Please edit documentation in R/individual.R
 \name{individual_simulation}
 \alias{individual_simulation}
-\title{Runs an individual level simulation}
+\title{Runs an individual level simulation.}
 \usage{
 individual_simulation(transitions, newdata_mat, trans_mat, N, tcovs)
 }
@@ -19,8 +19,8 @@ individual_simulation(transitions, newdata_mat, trans_mat, N, tcovs)
 since simulation start added onto them at each intermediate state entry. Default is NULL.}
 }
 \value{
-Usual output from DES, with state entry times
+A data frame with entry times for each state that is entered.
 }
 \description{
-Runs an individual level simulation
+Returns a data.table with state occupancy times for a single individual.
 }
