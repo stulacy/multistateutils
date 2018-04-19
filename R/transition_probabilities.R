@@ -11,65 +11,57 @@
 #'
 #' @return A data frame in long format with transition probabilities for each individual,
 #' for each starting time, and for each ending time.
-calculate_transition_probabilities <- function(newdata_mat, transitions, trans_mat, N, tcovs,
-                                               start_times, end_times, covar_values) {
+calculate_transition_probabilities <- function(occupancy, start_times, end_times, state_names, ci) {
 
-    # Calculate state occupancy for each covariate pattern
-    # Run simulation for each individual
-    res <- lapply(1:nrow(newdata_mat), function(i) {
-        individual_simulation(transitions, newdata_mat[i, ], trans_mat, N, tcovs)
-    })
+    nstates <- length(state_names)
+    keys <- c('individual', 'id')
+    full_keys <- c('individual', 'start_time', 'end_time', 'start_state')
+    # Formula used for counting number of individuals in each end state from every
+    # independent variable combination
+    LHS <- c('individual', 'start_time', 'end_time', 'start_state')
 
-    # Obtain neat labels for results detailing individual attributes
-    names(res) <- sapply(1:nrow(newdata_mat), function(i) {
-        paste(paste(colnames(covar_values), covar_values[i, ], sep='='), collapse=',')
-    })
+    if (ci) {
+        keys <- c('simulation', keys)
+        full_keys <- c('simulation', full_keys)
+        LHS <- c('simulation', LHS)
+    }
 
-    state_names <- colnames(trans_mat)
-    nstates <- nrow(trans_mat)
+    count_form <- as.formula(paste(paste(LHS, collapse='+'),
+                                   'end_state', sep='~'))
 
-    resDT <- data.table::rbindlist(lapply(res, data.table::as.data.table), idcol='individual')
-    data.table::setnames(resDT, c('individual', 'id', 'state', 'time'))
 
     # Find state was in at start time
     # Obtain state that a person is in at starting times
-    start_states <- resDT[, .(start_state = state[findInterval(start_times, time)]),by=.(individual, id)]
+    start_states <- occupancy[, .(start_state = state[findInterval(start_times, time)]),by=keys]
     start_states[, start_time := start_times ]
 
     # Obtain state that a person is in at all times want to calculate probabilities for
-    end_states <- resDT[, .(end_state = state[findInterval(end_times, time)]), by=.(individual, id)]
+    end_states <- occupancy[, .(end_state = state[findInterval(end_times, time)]), by=keys]
     end_states[, end_time := end_times ]
 
     # Join the two tables together
-    combined <- merge(start_states, end_states, on=c('individual', 'id'), allow.cartesian=TRUE)
+    combined <- merge(start_states, end_states, on=keys, allow.cartesian=TRUE)
 
     # Calculate transition probabilities
-    counts <- data.table::dcast(combined, individual + start_time + end_time + start_state ~ end_state,
-                                value.var='end_time', length)
-    end_state_names <- colnames(counts)[5:ncol(counts)]  # First 4 columns are individual, start_time, end_time, start_state
+    counts <- data.table::dcast(combined, count_form, value.var='end_time', length)
+    end_state_names <- colnames(counts)[(ncol(counts)-nstates+1):ncol(counts)]
+
     # Calculate the number in the starting state at specified starting time
-    counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=.(start_time, end_time, start_state, individual)]
+    counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=full_keys]
 
     # Calculate proportions
     proportions <- counts[, lapply(.SD, function(x) x / num_start),
                           .SDcols=end_state_names,
-                          by=.(individual, start_time, end_time, start_state)]
-    proportions_df <- as.data.frame(proportions)
+                          by=full_keys]
 
-    # Split individual into columns
-    covars <- colnames(covar_values)
-    proportions_df <- proportions_df %>%
-        tidyr::separate(individual, sep=',', into=covars)
-
-    proportions_df[covars] <- lapply(proportions_df[covars],
-                                     function(x) gsub("[[:alnum:]]+=", "", x))
-
-    proportions_df <- proportions_df %>%
-                            dplyr::mutate(start_state = factor(start_state,
-                                                               levels=seq_along(state_names)-1,
-                                                               labels=state_names))
-    colnames(proportions_df)[ (ncol(proportions_df) - nstates + 1) : ncol(proportions_df) ] <- state_names
-    proportions_df
+    # Add state names for starting state column and as column names for ending states
+    start_ind <- ncol(proportions) - nstates + 1
+    data.table::setnames(proportions, c(names(proportions)[1:(start_ind-1)],
+                                        state_names))
+    proportions$start_state <- factor(proportions$start_state,
+                                      levels=seq_along(state_names)-1,
+                                      labels=state_names)
+    proportions
 }
 
 
@@ -110,7 +102,8 @@ predict_transitions <- function(models, newdata, trans_mat, times,
         stop("Error: 'start_times' must be earlier than any value in 'times'.")
 
     # TODO More guards! Check nature of trans_mat, check that covariates required
-    # by all models are in newdata
+    # by all models are in newdata. Although want state-occupancy specific guards to
+    # be in 'state_occupancy'
 
     # Required by CRAN checks
     id <- NULL
@@ -123,48 +116,16 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     start_state <- NULL
     individual <- NULL
 
-    ###### TODO! Make this one function to prepare inputs, so that can reuse it for LoS
+    # Calculate state occupancies
+    occupancy <- state_occupancy(models, trans_mat, newdata, N, tcovs, ci, M)
 
-    # Obtain attributes as a matrix
-    attr_mat <- form_model_matrix(newdata, models)
+    # Estimate transition probabilities, this will add 'simulation' as a key if used
+    probs <- calculate_transition_probabilities(occupancy, start_times, times, colnames(trans_mat), ci)
 
-    # Obtain covariate values of new individuals so that can form neat labels
-    # of the output probabilities
-    label_df <- data.frame(lapply(newdata, as.character), stringsAsFactors=FALSE)
-
-    # Ensure that the transition matrix doesn't have NA values, replacing these with 0
-    trans_mat[is.na(trans_mat)] <- 0
-
-    # Find the column indices for time-dependent variables
-    if (!is.null(tcovs))
-        tcovs <- match(tcovs, colnames(attr_mat)) - 1  # 0-index for c++
-
-    ###### TODO! End prep function here
-
-    out <- if (!ci) {
-        # Convert models to list of transitions as required
-        transition_list <- lapply(models, obtain_model_coef, attr_mat)
-
-        calculate_transition_probabilities(attr_mat, transition_list, trans_mat, N, tcovs,
-                                           start_times, times, label_df)
-    } else {
-        # This function returns a list with each transition as the highest level item,
-        # then followed by the M simulations. We want the opposite.
-        transition_list <- lapply(models, obtain_model_coef, attr_mat, M=M)
-        transitions_per_sim <- lapply(1:M, function(sim) {
-            lapply(seq_along(models), function(m) {
-                transition_list[[m]][[sim]]
-            })
-        })
-        sims <- lapply(1:M, function(i) {
-              calculate_transition_probabilities(attr_mat, transitions_per_sim[[i]], trans_mat, N, tcovs,
-                                                 start_times, times, label_df)
-        })
+    if (ci) {
         # Make CIs
-        # Combine all tables together with a simulation index
-        foo <- data.table::rbindlist(lapply(sims, data.table::as.data.table), idcol="simulation")
         # Form the unique indices and grab state names we're going to need for these summaries
-        keys <- c(colnames(newdata), 'start_time', 'end_time', 'start_state')
+        keys <- c('individual', 'start_time', 'end_time', 'start_state')
         states <- colnames(trans_mat)
 
         # Calculate CI limits
@@ -173,17 +134,21 @@ predict_transitions <- function(models, newdata, trans_mat, times,
         ci_lower <- ci_tail
 
         # Obtain summaries
-        means <- foo[, lapply(.SD, mean), .SDcols=states, by=keys]
-        upper <- foo[, lapply(.SD, quantile, ci_upper), .SDcols=states, by=keys]
-        lower <- foo[, lapply(.SD, quantile, ci_lower), .SDcols=states, by=keys]
+        means <- probs[, lapply(.SD, mean), .SDcols=states, by=keys]
+        upper <- probs[, lapply(.SD, quantile, ci_upper), .SDcols=states, by=keys]
+        lower <- probs[, lapply(.SD, quantile, ci_lower), .SDcols=states, by=keys]
 
         # Join together
         merge1 <- merge(means, lower, by=keys, suffixes=c('_est', paste0('_', ci_lower*100, '%')))
         merge2 <- merge(merge1, upper, by=keys)
+
+        # Provide column names for upper CI
         colnames(merge2)[match(states, colnames(merge2))] <- paste0(states, paste0('_', ci_upper*100, '%'))
-        as.data.frame(merge2)
+
+        probs  <- merge2
     }
 
-
+    # Add in columns for each covariate name to replace the single 'individual' column
+    separate_covariates(probs, colnames(newdata))
 
 }

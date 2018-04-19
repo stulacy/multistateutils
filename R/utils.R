@@ -67,6 +67,13 @@ coefs_as_list <- function(all_coefs, param_names, mx, attr_names, dist) {
     list(name=dist, coefs=coefs)
 }
 
+#' Creates data matrix from data frame and models.
+#'
+#' @param dataframe The data to be converted in a standard
+#'   \code{data.frame} object.
+#' @inheritParams predict_transitions
+#'
+#' @return A \code{data.matrix} with the data.
 form_model_matrix <- function(dataframe, models) {
     # Obtain the coefficients used in all models
     cov_names <- unique(unlist(sapply(models, function(x) {
@@ -77,6 +84,29 @@ form_model_matrix <- function(dataframe, models) {
     # all covariates that are used in any transition.
     newform <- stats::as.formula(paste("~", paste(cov_names, collapse='+')))
     stats::model.matrix(newform, dataframe)
+}
+
+#' Separates individuals who are indexed by a single column into their constituent covariates.
+#'
+#' Requires a data.table or data.frame that has a column called 'individual' that holds identifying
+#' information about that individual combined into a single column for use as a key. The format
+#' of this column is <covar_name>=<covar_value>,<covar2_name>=<covar2_value>...
+#'
+#' @param dt Input data source. Can be \code{data.table} or \code{data.frame}.
+#' @param covariates The covariate names that these individuals have, as a character string.
+#'   In the description above these are the <covar_name> values.
+#'
+#' @return A copy of the data with the 'individual' column removed and replaced by a column
+#'   for each covariate in \code{covariates} as a \code{data.frame}.
+separate_covariates <- function(dt, covariates) {
+    proportions_df <- dt %>%
+                        tidyr::separate(individual, sep=',', into=covariates) %>%
+                        as.data.frame()  # Coerce to data.frame if not already
+
+    proportions_df[covariates] <- lapply(proportions_df[covariates],
+                                     function(x) gsub("[[:alnum:]]+=", "", x))
+
+    proportions_df
 }
 
 DISTS <- list("weibull"=c("scale", "shape"),
