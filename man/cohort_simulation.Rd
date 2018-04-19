@@ -13,7 +13,7 @@ cohort_simulation(models, newdata, trans_mat, start_times = NULL)
 
 \item{trans_mat}{Transition matrix}
 
-\item{start_times}{Entry times of individuals specified in \code{newdata}. 
+\item{start_times}{Entry times of individuals specified in \code{newdata}.
 Can either be a single time that everyone enters at, or have as many values
 as rows in \code{newdata}. If NULL then everyone enter at t=0}
 }

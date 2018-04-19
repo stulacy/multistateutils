@@ -8,5 +8,6 @@ Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
 Description: rdes provides a fast implementation of a discrete event simulation, allowing for the estimation of transition probabilities in multi-state modelling where transition hazards are functions of standard parametric families. It has been designed for healthcare uses but will work with any model where parametric models can be used to model transition rates.
 License: GPL (>= 2)
 Imports: Rcpp (>= 0.12.10), data.table, dplyr, magrittr, survival, tidyr
+Suggests: flexsurv, mstate, microbenchmark, rmarkdown
 LinkingTo: Rcpp
 RoxygenNote: 6.0.1
