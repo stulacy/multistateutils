@@ -35,9 +35,9 @@ for (tr in 1:3) {
     }
 }
 
-ndata <- data.frame(sex=factor('M', levels=c('F', 'M')),
-                     age=factor('20-40', levels=c('<=20', '20-40', '>40')),
-                     dissub=factor('CML', levels=c('AML', 'ALL', 'CML')))
+ndata <- data.frame(sex='M',
+                    age='20-40',
+                    dissub='CML')
 
 
 tmat <- mstate::trans.illdeath()
@@ -53,9 +53,9 @@ do.call('rbind', lapply(seq(3) * 365.25, function(t) {
 
 
 ##### Predicting for multiple individuals at once
-ndata <- data.frame(sex=factor(c('M', 'F'), levels=c('F', 'M')),
-                     age=factor(c('20-40', '20-40'), levels=c('<=20', '20-40', '>40')),
-                     dissub=factor(c('CML', 'AML'), levels=c('AML', 'ALL', 'CML')))
+ndata <- data.frame(sex=c('M', 'F'),
+                     age=c('20-40', '20-40'),
+                     dissub=c('CML', 'AML'))
 
 
 bar <- predict_transitions(models, ndata, tmat, times=seq(3)*365.25, N=10000)
@@ -127,10 +127,10 @@ for (tr in 1:3) {
 # such one in this dataset. Thus the transition from pr -> death has age increased by amount of
 # time since diagnosis, and this information is also held in the 'Tstart' variable, which
 # holds the amount of time since diagnosis
-newdata_entry <- data.frame(sex=factor('M', levels=c('F', 'M')),
-                      age_entry=50,
-                      dissub=factor('CML', levels=c('AML', 'ALL', 'CML')),
-                      Tstart_yrs = 0)
+newdata_entry <- data.frame(sex='M',
+                            age_entry=50,
+                            dissub='CML',
+                            Tstart_yrs = 0)
 
 # I've had to add in the same 'tcovs' argument as pmatrix.simfs for this to work in RDES
 predict_transitions(models_entry, newdata_entry, tmat, times=c(1, 3, 5), tcovs=c('age_entry', 'Tstart_yrs'))
@@ -146,9 +146,9 @@ do.call('rbind', lapply(c(1, 3, 5), function(t) {
 
 
 ###### Bootstrapping
-ndata <- data.frame(sex=factor('M', levels=c('F', 'M')),
-                     age=factor('20-40', levels=c('<=20', '20-40', '>40')),
-                     dissub=factor('CML', levels=c('AML', 'ALL', 'CML')))
+ndata <- data.frame(sex='M',
+                     age='20-40',
+                     dissub='CML')
 
 tmat <- mstate::trans.illdeath()
 

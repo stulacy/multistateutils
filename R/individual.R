@@ -36,16 +36,16 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs)
 #' Combines the data.tables for multiple individuals / simulations into
 #' a single table, with appropriate indexing.
 #'
-#' @inheritParams predict_transitions
+#' @inheritParams individual_simulation
 #' @param covar_values Data frame comprising the covariate values so that neat labels can be formed
 #'   for the output probability data frame.
 #'
 #' @return A data.table with state occupancies and key column 'individual'.
-multiple_simulations <- function(transition_list, trans_mat, newdata_mat, N, tcovs, covar_values) {
+multiple_simulations <- function(transitions, trans_mat, newdata_mat, N, tcovs, covar_values) {
     # Calculate state occupancy for each covariate pattern
     # Run simulation for each individual
     res <- lapply(1:nrow(newdata_mat), function(i) {
-        individual_simulation(transition_list, newdata_mat[i, ], trans_mat, N, tcovs)
+        individual_simulation(transitions, newdata_mat[i, ], trans_mat, N, tcovs)
     })
 
     # Obtain neat labels for results detailing individual attributes

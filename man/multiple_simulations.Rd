@@ -4,16 +4,20 @@
 \alias{multiple_simulations}
 \title{Runs simulations for multiple individuals.}
 \usage{
-multiple_simulations(transition_list, trans_mat, newdata_mat, N, tcovs,
+multiple_simulations(transitions, trans_mat, newdata_mat, N, tcovs,
   covar_values)
 }
 \arguments{
-\item{trans_mat}{Transition matrix, such as that used in \code{mstate}.}
+\item{transitions}{A list of transitions as required by \code{desCpp}.}
 
-\item{N}{Number of times to repeat the individual}
+\item{trans_mat}{Transition matrix}
 
-\item{tcovs}{As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
-incremented by the simulation clock at each transition, such as age when modelled as age at state entry.}
+\item{newdata_mat}{New data already in data matrix format as a single row}
+
+\item{N}{Number of times to replicate this individual.}
+
+\item{tcovs}{Indices of covariates that are time-dependent and need to have the time
+since simulation start added onto them at each intermediate state entry. Default is NULL.}
 
 \item{covar_values}{Data frame comprising the covariate values so that neat labels can be formed
 for the output probability data frame.}

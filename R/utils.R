@@ -2,6 +2,7 @@
 #'
 #' @param mod A parametric survival model saved as a \code{flexsurvreg} object.
 #' @param attrs Attributes of a new individual as a data matrix.
+#' @param M Number of bootstrap simulations, set to 1 if no bootstrapping is used.
 #' @return A list with the following elements:
 #' \itemize{
 #'     \item name The distribution name as a string, as used by \code{flexsurv}.
@@ -80,6 +81,40 @@ form_model_matrix <- function(dataframe, models) {
         attr(x$concat.formula, "covnames")
     })))
 
+    # Throw error if not all covariates are in newdata
+    if (! all(cov_names %in% colnames(dataframe))) {
+        stop(paste("Error: covariates missing from newdata that were used in model fitting: ", cov_names[!cov_names %in% colnames(dataframe)]))
+    }
+
+    # Remove variables from newdata that aren't in models
+    extraneous_vars <- setdiff(colnames(dataframe), cov_names)
+    dataframe <- dataframe[, -match(extraneous_vars, colnames(dataframe))]
+
+    # Determine covariate levels so can set levels of the
+    all_levels <- stats::setNames(lapply(cov_names, function(cov) {
+        lapply(models, function(mod) levels(mod$data$m[[cov]]))
+    }), cov_names)
+
+    # Remove NULLs
+    all_levels <- lapply(all_levels, function(cov) cov[!sapply(cov, is.null)])
+
+    # Remove empty lists (continuous variables or otherwise not defined as factors)
+    all_levels <- all_levels[!sapply(all_levels, function(x) length(x) == 0)]
+
+    # Then check all unique
+    unique_cov <- sapply(all_levels, function(cov) {
+        all(sapply(cov, identical, cov[[1]]))
+    })
+
+    if (!all(unique_cov)) {
+        stop(paste("Error: can't determine factor levels from models, inconsistent levels on different transition models. Check variables", names(unique_cov)[!unique_cov]))
+    }
+
+    # If have the same levels on all transitions then can simply set these as the levels
+    for (cov in names(all_levels)) {
+        dataframe[[cov]] <- factor(dataframe[[cov]], levels=all_levels[[cov]][[1]])  # Have proven identical above so can just use first item
+    }
+
     # Obtain transitions as list as required above. Need data in matrix form first. Will generate this for the entire dataset, containing
     # all covariates that are used in any transition.
     newform <- stats::as.formula(paste("~", paste(cov_names, collapse='+')))
@@ -99,6 +134,9 @@ form_model_matrix <- function(dataframe, models) {
 #' @return A copy of the data with the 'individual' column removed and replaced by a column
 #'   for each covariate in \code{covariates} as a \code{data.frame}.
 separate_covariates <- function(dt, covariates) {
+    # CMD CHECK
+    individual <- NULL
+
     proportions_df <- dt %>%
                         tidyr::separate(individual, sep=',', into=covariates) %>%
                         as.data.frame()  # Coerce to data.frame if not already

@@ -3,15 +3,27 @@
 #' Uses an already formatted set of arguments to run the individual level
 #' simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
 #' and derives transition probabilities from the resulting state occupancies.
-#' @inheritParams individual_simulation
-#' @param times Times at which to estimate transition probabilities. If not provided then doesn't estimate
+#' @inheritParams predict_transitions
+#' @param occupancy State occupancy data.table as returned by \code{state_occupancy}.
+#' @param state_names Character vector containing the names of the states.
+#' @param end_times Times at which to estimate transition probabilities. If not provided then doesn't estimate
 #'   transition probabilities, just length of stay.
-#' @param covar_values Data frame comprising the covariate values so that neat labels can be formed
-#'   for the output probability data frame..
 #'
 #' @return A data frame in long format with transition probabilities for each individual,
 #' for each starting time, and for each ending time.
 calculate_transition_probabilities <- function(occupancy, start_times, end_times, state_names, ci) {
+
+    # Required by CRAN checks
+    id <- NULL
+    state <- NULL
+    time <- NULL
+    start_time <- NULL
+    end_time <- NULL
+    individal <- NULL
+    num_start <- NULL
+    start_state <- NULL
+    individual <- NULL
+
 
     nstates <- length(state_names)
     keys <- c('individual', 'id')
@@ -26,8 +38,8 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
         LHS <- c('simulation', LHS)
     }
 
-    count_form <- as.formula(paste(paste(LHS, collapse='+'),
-                                   'end_state', sep='~'))
+    count_form <- stats::as.formula(paste(paste(LHS, collapse='+'),
+                                          'end_state', sep='~'))
 
 
     # Find state was in at start time
@@ -105,17 +117,6 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     # by all models are in newdata. Although want state-occupancy specific guards to
     # be in 'state_occupancy'
 
-    # Required by CRAN checks
-    id <- NULL
-    state <- NULL
-    time <- NULL
-    start_time <- NULL
-    end_time <- NULL
-    individal <- NULL
-    num_start <- NULL
-    start_state <- NULL
-    individual <- NULL
-
     # Calculate state occupancies
     occupancy <- state_occupancy(models, trans_mat, newdata, N, tcovs, ci, M)
 
@@ -134,9 +135,9 @@ predict_transitions <- function(models, newdata, trans_mat, times,
         ci_lower <- ci_tail
 
         # Obtain summaries
-        means <- probs[, lapply(.SD, mean), .SDcols=states, by=keys]
-        upper <- probs[, lapply(.SD, quantile, ci_upper), .SDcols=states, by=keys]
-        lower <- probs[, lapply(.SD, quantile, ci_lower), .SDcols=states, by=keys]
+        means <- probs[, lapply(.SD, base::mean), .SDcols=states, by=keys]
+        upper <- probs[, lapply(.SD, stats::quantile, ci_upper), .SDcols=states, by=keys]
+        lower <- probs[, lapply(.SD, stats::quantile, ci_lower), .SDcols=states, by=keys]
 
         # Join together
         merge1 <- merge(means, lower, by=keys, suffixes=c('_est', paste0('_', ci_lower*100, '%')))

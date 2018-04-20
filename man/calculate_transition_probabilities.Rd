@@ -8,11 +8,16 @@ calculate_transition_probabilities(occupancy, start_times, end_times,
   state_names, ci)
 }
 \arguments{
-\item{times}{Times at which to estimate transition probabilities. If not provided then doesn't estimate
+\item{occupancy}{State occupancy data.table as returned by \code{state_occupancy}.}
+
+\item{start_times}{Conditional time for transition probability.}
+
+\item{end_times}{Times at which to estimate transition probabilities. If not provided then doesn't estimate
 transition probabilities, just length of stay.}
 
-\item{covar_values}{Data frame comprising the covariate values so that neat labels can be formed
-for the output probability data frame..}
+\item{state_names}{Character vector containing the names of the states.}
+
+\item{ci}{Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.}
 }
 \value{
 A data frame in long format with transition probabilities for each individual,

@@ -10,6 +10,8 @@ obtain_model_coef(mod, attrs, M = 1)
 \item{mod}{A parametric survival model saved as a \code{flexsurvreg} object.}
 
 \item{attrs}{Attributes of a new individual as a data matrix.}
+
+\item{M}{Number of bootstrap simulations, set to 1 if no bootstrapping is used.}
 }
 \value{
 A list with the following elements:
