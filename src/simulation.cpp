@@ -1,7 +1,8 @@
 #include "simulation.h"
 #include "event.h"
 
-Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times):
+Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix attrs, std::vector<double> times,
+                       std::vector<int> start_states, std::vector<int> tcovs):
     clock(0), patient_attributes(attrs) {
 
     // Create the list of states with their associated transitions
@@ -13,6 +14,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
 
     nstates = trans_mat.nrow();
 
+    // Setup states
     for (int source=0; source < nstates; source++) {
         State nstate = State(source);
         for (int dest=0; dest < nstates; dest++) {
@@ -27,20 +29,25 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
 
             trans_name  = as<std::string>(this_trans["name"]);
 
-            // TODO Extract transition coefficients and pass appropriate values into Transition factory
-            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]))));
+            // Extract transition coefficients and pass appropriate values into Transition factory
+            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]), tcovs)));
         }
         states.emplace_back(std::move(nstate));
     }
 
-
     // Populate event list with initial entries into the system
-    int id;
-    std::vector<double>::iterator it;
-    int first_state = 0; // assumption that everyone enters at state 0
+    int id, i;
+    //std::vector<double>::iterator it;
+    double initial_time;
 
-    for (id=0, it = times.begin(); it != times.end(); ++it, ++id) {
-        add_event(Event(id, first_state, (*it), (*it), (*it)));
+    if (times.size() != start_states.size()) {
+        // TODO Should raise error
+        Rcpp::Rcerr << "Error. starting states does not have the same length as starting times (" << start_states.size() << " and " << times.size() << " respectively).\n";
+    }
+
+    for (id=0, i=0; i < times.size(); ++id, ++i) {
+        initial_time = times[i];
+        add_event(Event(id, start_states[i], initial_time, initial_time));
     }
 }
 

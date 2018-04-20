@@ -5,13 +5,16 @@
 #include <utility>
 #include "transitions.h"
 
-const double MINIMUM_EVENT_TIME = 1.0;
+// Minimum event time that can be drawn. Rounds up event times if less than this. I've removed it (well, set to 0)
+// for now, as this value completely depends on the time-scale. I.e. a value of 1 day makes sense, but the models
+// have no idea whether the time-scale is days, or years, or hours.
+const double MINIMUM_EVENT_TIME = 0.0;
 
 class State {
     public:
         const int num;
         State(int num);
-        std::pair<int, double> get_next_transition(Rcpp::NumericVector, double, double);
+        std::pair<int, double> get_next_transition(Rcpp::NumericVector, double);
         void add_transition(std::unique_ptr<Transition>);
         bool is_transient() const;
 

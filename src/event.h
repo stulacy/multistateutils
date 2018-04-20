@@ -5,12 +5,11 @@ class Simulation;
 
 class Event {
     public:
-        Event(int, int, double, double, double);
+        Event(int, int, double, double);
         int state_entering;
         double time;
         int individual_id;
         double sim_entry;
-        double prev_state_entry;
         void processEvent(Simulation* sim);
 };
 
