@@ -77,7 +77,7 @@ coefs_as_list <- function(all_coefs, param_names, mx, attr_names, dist) {
 #' @return A \code{data.matrix} with the data.
 form_model_matrix <- function(dataframe, models) {
     # Obtain the coefficients used in all models
-    cov_names <- unique(unlist(sapply(models, function(x) {
+    cov_names <- unique(unlist(lapply(models, function(x) {
         attr(x$concat.formula, "covnames")
     })))
 
@@ -88,7 +88,8 @@ form_model_matrix <- function(dataframe, models) {
 
     # Remove variables from newdata that aren't in models
     extraneous_vars <- setdiff(colnames(dataframe), cov_names)
-    dataframe <- dataframe[, -match(extraneous_vars, colnames(dataframe))]
+    if (length(extraneous_vars > 0))
+        dataframe <- dataframe[-match(extraneous_vars, colnames(dataframe))]
 
     # Determine covariate levels so can set levels of the
     all_levels <- stats::setNames(lapply(cov_names, function(cov) {
