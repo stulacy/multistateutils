@@ -327,6 +327,23 @@ predict_transitions(models_mix, newdata, tmat, times=365)
 pmatrix.simfs(models_mix, tmat, newdata=newdata, t=365)
 ```
 
+### Length of stay
+
+```{r}
+run_debug <- function() {
+    set.seed(17)
+    length_of_stay(models, newdata, tmat, times=365.25*3)
+}
+```
+
+```{r}
+length_of_stay(models, newdata, tmat, times=c(1, 3, 5)*365.25)
+```
+
+```{r}
+totlos.simfs(models, tmat, t=365.25*3, start=1, newdata=newdata)
+```
+
 ## Upcoming features
 
 Future version of `rdes` will include the ability to estimate expected length of stay; similarly to how `predict_transitions` builds on `flexsurv::pmatrix.simfs`, this feature would extend `flexsurv::totlos.simfs`.

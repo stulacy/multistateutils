@@ -1,12 +1,11 @@
 #' Calculates transition probabilities for multiple individuals.
 #'
-#' Uses an already formatted set of arguments to run the individual level
-#' simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
-#' and derives transition probabilities from the resulting state occupancies.
+#' Calculates transition probabilities for specified parameters from state
+#' occupancies.
 #' @inheritParams predict_transitions
 #' @param occupancy State occupancy data.table as returned by \code{state_occupancy}.
 #' @param state_names Character vector containing the names of the states.
-#' @param end_times Times at which to estimate transition probabilities. If not provided then doesn't estimate
+#' @param end_times Times at which to estimate transition probabilities
 #'   transition probabilities, just length of stay.
 #'
 #' @return A data frame in long format with transition probabilities for each individual,
@@ -77,17 +76,17 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 }
 
 
-#' Estimates transition probabilities and length of stay
+#' Estimates transition probabilities
 #'
-#' Estimates various measures of an individual's passage through a multi-state model
+#' Estimates transition probabilities of an individual's passage 
+#' through a multi-state model
 #' by discrete event simulation.
 #'
 #' @param models List of \code{flexsurvreg} objects.
 #' @param newdata Data frame with covariates of individual to simulate times for. Must contain all fields
 #'   required by models.
 #' @param trans_mat Transition matrix, such as that used in \code{mstate}.
-#' @param times Times at which to estimate transition probabilities. If not provided then doesn't estimate
-#'   transition probabilities, just length of stay.
+#' @param times Times at which to estimate transition probabilities. 
 #' @param start_times Conditional time for transition probability.
 #' @param tcovs As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
 #'   incremented by the simulation clock at each transition, such as age when modelled as age at state entry.
@@ -95,7 +94,7 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
 #' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
 #' @param ci_margin Confidence interval range to use if \code{ci} is set to \code{TRUE}.
-#' @return A list for each individual with items for length of stay and transition probabilities.
+#' @return A data frame with estimates of transition probabilities.
 #'
 #' @importFrom magrittr '%>%'
 #' @import data.table

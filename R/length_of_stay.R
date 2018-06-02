@@ -1,0 +1,156 @@
+#' Calculates length of stay for multiple individuals.
+#'
+#' Uses an already formatted set of arguments to run the individual level
+#' simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
+#' and derives transition probabilities from the resulting state occupancies.
+#' @inheritParams predict_transitions
+#' @param occupancy State occupancy data.table as returned by \code{state_occupancy}.
+#' @param state_names Character vector containing the names of the states.
+#' @param end_times Times at which to estimate transition probabilities. If not provided then doesn't estimate
+#'   transition probabilities, just length of stay.
+#'
+#' @return A data frame in long format with transition probabilities for each individual,
+#' for each starting time, and for each ending time.
+#' TODO Could make this different to totls.simfs by allowing user to specify starting time as well?
+#' I.e. this currently just assumes state entry at time 0
+calculate_los <- function(occupancy, start_states, times, state_names, ci, start_time=0) {
+
+    # Required by CRAN checks
+    #id <- NULL
+    #state <- NULL
+    #time <- NULL
+    #end_time <- NULL
+    #individal <- NULL
+    #num_start <- NULL
+    #start_state <- NULL
+    #individual <- NULL
+    
+    occupancy[, state := state + 1]  # convert to 1-based index
+    
+    nstates <- length(state_names)
+    keys <- c('individual', 'id')
+    
+    los <- data.table::rbindlist(lapply(times, function(t) {
+        data.table::rbindlist(lapply(start_states, function(s) {
+            # Filter to people in this starting state and remove state entries
+            # that are after t
+            this_state <- merge(occupancy[state == s & time == start_time, keys, with=F], 
+                                occupancy[time <= t], 
+                                on=keys)
+            
+            # Add dummy state which replicates last known state at t and add back into main table
+            early_exit <- copy(this_state[this_state[, .I[which.max(time)], by=keys]$V1][time < t])
+            early_exit[ , time:= t ]
+            full <- rbindlist(list(this_state, early_exit))[order(time)]
+            
+            # Obtain time differences between each state transition
+            time_spent <- full[, .(state=get_state_entries(state), duration=diff(time)), 
+                               by=keys]
+            
+            # Sum up time spent in each state in case of multiple entries to same state
+            time_spent[, duration := sum(duration), by=c(keys, 'state')]
+            num_in_starting_state <- length(unique(time_spent$id))
+            time_spent[, .(los=sum(duration)/num_in_starting_state), by=c('individual', 'state')]
+        }), idcol='start_state')
+    }), idcol='t')
+    
+    setorder(los, 'start_state', 't', 'individual', 'state')
+    
+    if (ci) {
+        keys <- c('simulation', keys)
+        full_keys <- c('simulation', full_keys)
+        LHS <- c('simulation', LHS)
+    }
+    los
+}
+
+#' Estimates length of stay
+#'
+#' Estimates length of stay in each state of an individual's passage 
+#' through a multi-state model
+#' by discrete event simulation.
+#'
+#' @param models List of \code{flexsurvreg} objects.
+#' @param newdata Data frame with covariates of individual to simulate times for. Must contain all fields
+#'   required by models.
+#' @param trans_mat Transition matrix, such as that used in \code{mstate}.
+#' @param start Starting state. Either number or character name in \code{trans_mat}.
+#' @param times Times at which to estimate transition probabilities. If not provided then doesn't estimate
+#'   transition probabilities, just length of stay.
+#' @param tcovs As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
+#'   incremented by the simulation clock at each transition, such as age when modelled as age at state entry.
+#' @param N Number of times to repeat the individual
+#' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
+#' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
+#' @param ci_margin Confidence interval range to use if \code{ci} is set to \code{TRUE}.
+#' @return A list for each individual with items for length of stay and transition probabilities.
+#'
+#' @importFrom magrittr '%>%'
+#' @import data.table
+#' @export
+length_of_stay <- function(models, newdata, trans_mat, times, start=1,
+                           tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
+                           ci_margin=0.95) {
+
+    if (ncol(trans_mat) != nrow(trans_mat)) {
+        stop(paste0("Error: trans_mat has differing number of rows and columns (",
+                    nrow(trans_mat), " and ",
+                    ncol(trans_mat), ")."))
+    }
+    
+    # Validate starting state, both if provided as character or int
+    if (is.character(start)) {
+        start_int <- match(start, colnames(trans_mat))
+        if (is.na(start_int))
+            stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
+        start <- start_int
+    } else {
+        # See if integer is valid one
+        if (!start %in% tmat[!is.na(tmat)])
+            stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
+    }
+
+    # TODO More guards! Check nature of trans_mat, check that covariates required
+    # by all models are in newdata. Although want state-occupancy specific guards to
+    # be in 'state_occupancy'
+
+    # Calculate state occupancies
+    occupancy <- state_occupancy(models, trans_mat, newdata, N, tcovs, ci, M)
+
+    # Estimate transition probabilities, this will add 'simulation' as a key if used
+    los <- calculate_los(occupancy, start, times, colnames(trans_mat), ci)
+    los
+
+    #if (ci) {
+    #    # Make CIs
+    #    # Form the unique indices and grab state names we're going to need for these summaries
+    #    keys <- c('individual', 'start_time', 'end_time', 'start_state')
+    #    states <- colnames(trans_mat)
+#
+    #    # Calculate CI limits
+    #    ci_tail <- (1 - ci_margin) / 2
+    #    ci_upper <- 1 - ci_tail
+    #    ci_lower <- ci_tail
+#
+    #    # Obtain summaries
+    #    means <- probs[, lapply(.SD, base::mean), .SDcols=states, by=keys]
+    #    upper <- probs[, lapply(.SD, stats::quantile, ci_upper), .SDcols=states, by=keys]
+    #    lower <- probs[, lapply(.SD, stats::quantile, ci_lower), .SDcols=states, by=keys]
+#
+    #    # Join together
+    #    merge1 <- merge(means, lower, by=keys, suffixes=c('_est', paste0('_', ci_lower*100, '%')))
+    #    merge2 <- merge(merge1, upper, by=keys)
+#
+    #    # Provide column names for upper CI
+    #    colnames(merge2)[match(states, colnames(merge2))] <- paste0(states, paste0('_', ci_upper*100, '%'))
+#
+    #    probs  <- merge2
+    #}
+#
+    ## Add in columns for each covariate name to replace the single 'individual' column
+    clean <- separate_covariates(los, colnames(newdata))
+    # Add state names in 
+    clean$state <- factor(clean$state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
+    clean
+
+}
