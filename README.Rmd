@@ -332,12 +332,12 @@ pmatrix.simfs(models_mix, tmat, newdata=newdata, t=365)
 ```{r}
 run_debug <- function() {
     set.seed(17)
-    length_of_stay(models, newdata, tmat, times=365.25*3)
+    length_of_stay(models, newdata, tmat, times=365.25*3, ci = TRUE, M=5)
 }
 ```
 
 ```{r}
-length_of_stay(models, newdata, tmat, times=c(1, 3, 5)*365.25)
+length_of_stay(models, newdata, tmat, times=3*365.25, ci=TRUE, M=10)
 ```
 
 ```{r}

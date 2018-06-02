@@ -29,6 +29,11 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
     
     nstates <- length(state_names)
     keys <- c('individual', 'id')
+    los_keys <- c('individual', 'state')
+    if (ci) {
+        keys <- c('simulation', keys) 
+        los_keys <- c('simulation', los_keys)
+    }
     
     los <- data.table::rbindlist(lapply(times, function(t) {
         data.table::rbindlist(lapply(start_states, function(s) {
@@ -50,17 +55,11 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
             # Sum up time spent in each state in case of multiple entries to same state
             time_spent[, duration := sum(duration), by=c(keys, 'state')]
             num_in_starting_state <- length(unique(time_spent$id))
-            time_spent[, .(los=sum(duration)/num_in_starting_state), by=c('individual', 'state')]
+            time_spent[, .(los=sum(duration)/num_in_starting_state), by=los_keys]
         }), idcol='start_state')
     }), idcol='t')
     
     setorder(los, 'start_state', 't', 'individual', 'state')
-    
-    if (ci) {
-        keys <- c('simulation', keys)
-        full_keys <- c('simulation', full_keys)
-        LHS <- c('simulation', LHS)
-    }
     los
 }
 
@@ -119,38 +118,29 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
 
     # Estimate transition probabilities, this will add 'simulation' as a key if used
     los <- calculate_los(occupancy, start, times, colnames(trans_mat), ci)
-    los
 
-    #if (ci) {
-    #    # Make CIs
-    #    # Form the unique indices and grab state names we're going to need for these summaries
-    #    keys <- c('individual', 'start_time', 'end_time', 'start_state')
-    #    states <- colnames(trans_mat)
-#
-    #    # Calculate CI limits
-    #    ci_tail <- (1 - ci_margin) / 2
-    #    ci_upper <- 1 - ci_tail
-    #    ci_lower <- ci_tail
-#
-    #    # Obtain summaries
-    #    means <- probs[, lapply(.SD, base::mean), .SDcols=states, by=keys]
-    #    upper <- probs[, lapply(.SD, stats::quantile, ci_upper), .SDcols=states, by=keys]
-    #    lower <- probs[, lapply(.SD, stats::quantile, ci_lower), .SDcols=states, by=keys]
-#
-    #    # Join together
-    #    merge1 <- merge(means, lower, by=keys, suffixes=c('_est', paste0('_', ci_lower*100, '%')))
-    #    merge2 <- merge(merge1, upper, by=keys)
-#
-    #    # Provide column names for upper CI
-    #    colnames(merge2)[match(states, colnames(merge2))] <- paste0(states, paste0('_', ci_upper*100, '%'))
-#
-    #    probs  <- merge2
-    #}
-#
-    ## Add in columns for each covariate name to replace the single 'individual' column
+    if (ci) {
+        # Form the unique indices and grab state names we're going to need for these summaries
+        keys <- c('t', 'start_state', 'individual', 'state')
+        states <- colnames(trans_mat)
+
+        # Calculate CI limits
+        ci_tail <- (1 - ci_margin) / 2
+        ci_upper <- 1 - ci_tail
+        ci_lower <- ci_tail
+        
+        # Calculate summary values across simulations
+        los <- los[, .(los=mean(los), 
+                           upper=quantile(los, ci_upper),
+                           lower=quantile(los, ci_lower)), 
+                       by=keys]
+    }
+
+    # Add in columns for each covariate name to replace the single 'individual' column
     clean <- separate_covariates(los, colnames(newdata))
     # Add state names in 
     clean$state <- factor(clean$state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
     clean
-
+    
+    # TODO Should this return a wide table like how transition probability does?
 }
