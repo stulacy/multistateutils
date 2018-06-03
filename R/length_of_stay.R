@@ -35,8 +35,8 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
         los_keys <- c('simulation', los_keys)
     }
     
-    los <- data.table::rbindlist(lapply(times, function(t) {
-        data.table::rbindlist(lapply(start_states, function(s) {
+    los <- data.table::rbindlist(lapply(setNames(times, times), function(t) {
+        data.table::rbindlist(lapply(setNames(start_states, start_states), function(s) {
             # Filter to people in this starting state and remove state entries
             # that are after t
             this_state <- merge(occupancy[state == s & time == start_time, keys, with=F], 
@@ -120,6 +120,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     
     # Use state names rather than indices
     los$state <- factor(los$state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
+    los$start_state <- factor(los$start_state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
     
     if (ci) {
         # Form the unique indices and grab state names we're going to need for these summaries
@@ -157,6 +158,4 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     # Add in columns for each covariate name to replace the single 'individual' column
     clean <- separate_covariates(los_wide, colnames(newdata))
     clean
-    
-    # TODO Have t column display correct values!
 }
