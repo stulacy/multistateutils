@@ -329,26 +329,31 @@ pmatrix.simfs(models_mix, tmat, newdata=newdata, t=365)
 
 ### Length of stay
 
-```{r}
-run_debug <- function() {
-    set.seed(17)
-    length_of_stay(models, newdata, tmat, times=365.25*3, ci = TRUE, M=5)
-}
-```
+Similarly, the length of stay functionality provided by `totlos.simfs` has also been extended to allow for estimates at multiple time-points, states, and individuals to be calculated at the same time. As shown below, the function parameters are very similar and the estimates are very close to those produced by `totlos.simf`.
 
 ```{r}
-length_of_stay(models, newdata, tmat, times=3*365.25, ci=FALSE, M=10)
+length_of_stay(models, 
+               newdata=newdata,
+               tmat, times=365.25*3,
+               start=1)
 ```
 
 ```{r}
 totlos.simfs(models, tmat, t=365.25*3, start=1, newdata=newdata)
 ```
 
+However, the advantage of the implementation provided by `rdes` is that estimates can be produced from multiple conditions without needing to duplicate the simulations.
+
+```{r}
+length_of_stay(models, 
+               newdata=data.frame(age=c(">40", ">40"),
+                                  dissub=c('CML', 'AML')),
+               tmat, times=c(1, 3, 5)*365.25)
+```
+
 ## Upcoming features
 
-Future version of `rdes` will include the ability to estimate expected length of stay; similarly to how `predict_transitions` builds on `flexsurv::pmatrix.simfs`, this feature would extend `flexsurv::totlos.simfs`.
-
-I also intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation. 
+I intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation. 
 
 There is currently a web-app (not currently publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny))  that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `rdes` and also provide an interface for individual level simulations, such as estimating transition probabilities.
 
