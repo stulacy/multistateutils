@@ -58,7 +58,7 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
             time_spent[, .(los=sum(duration)/num_in_starting_state), by=los_keys]
         }), idcol='start_state')
     }), idcol='t')
-    setorder(los, 'start_state', 't', 'individual', 'state')
+    setorder(los, 't', 'start_state', 'individual', 'state')
     los
 }
 
@@ -154,6 +154,9 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     } else {
         los_wide <- dcast(los, t + start_state + individual ~ state, value.var='los')
     }
+    
+    los_wide[, t := as.numeric(t)]
+    setorder(los_wide, 't', 'start_state', 'individual')
     
     # Add in columns for each covariate name to replace the single 'individual' column
     clean <- separate_covariates(los_wide, colnames(newdata))
