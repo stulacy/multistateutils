@@ -12,7 +12,7 @@ calculate_transition_probabilities(occupancy, start_times, end_times,
 
 \item{start_times}{Conditional time for transition probability.}
 
-\item{end_times}{Times at which to estimate transition probabilities. If not provided then doesn't estimate
+\item{end_times}{Times at which to estimate transition probabilities
 transition probabilities, just length of stay.}
 
 \item{state_names}{Character vector containing the names of the states.}
@@ -24,7 +24,6 @@ A data frame in long format with transition probabilities for each individual,
 for each starting time, and for each ending time.
 }
 \description{
-Uses an already formatted set of arguments to run the individual level
-simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
-and derives transition probabilities from the resulting state occupancies.
+Calculates transition probabilities for specified parameters from state
+occupancies.
 }

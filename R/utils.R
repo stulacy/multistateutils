@@ -148,6 +148,11 @@ separate_covariates <- function(dt, covariates) {
     proportions_df
 }
 
+# Used to get the states ids that have entered in LoS estimations 
+get_state_entries <- function(x) {
+    x[-length(x)]
+}
+
 DISTS <- list("weibull"=c("scale", "shape"),
               "gamma"=c("rate", "shape"),
               "exp"=c('rate'),
