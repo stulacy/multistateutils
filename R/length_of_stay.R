@@ -58,7 +58,6 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
             time_spent[, .(los=sum(duration)/num_in_starting_state), by=los_keys]
         }), idcol='start_state')
     }), idcol='t')
-    
     setorder(los, 'start_state', 't', 'individual', 'state')
     los
 }
@@ -118,10 +117,14 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
 
     # Estimate transition probabilities, this will add 'simulation' as a key if used
     los <- calculate_los(occupancy, start, times, colnames(trans_mat), ci)
-
+    
+    # Use state names rather than indices
+    los$state <- factor(los$state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
+    
     if (ci) {
         # Form the unique indices and grab state names we're going to need for these summaries
-        keys <- c('t', 'start_state', 'individual', 'state')
+        keys <- c('t', 'start_state', 'individual')
+        keys_with_state <- c(keys, 'state')
         states <- colnames(trans_mat)
 
         # Calculate CI limits
@@ -133,14 +136,27 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
         los <- los[, .(los=mean(los), 
                            upper=quantile(los, ci_upper),
                            lower=quantile(los, ci_lower)), 
-                       by=keys]
+                       by=keys_with_state]
+        
+        # Form wide tables with the estimate and CIs
+        form <- as.formula(paste(paste(keys, collapse='+'), 'state', sep='~'))
+        los_wide_mean <- dcast(los, form, value.var='los')
+        los[, state := sprintf("%s_%0.1f", state, ci_upper*100)]
+        los_wide_upper <- dcast(los, form, value.var='upper')
+        los[, state := gsub("_[0-9\\.]+$", sprintf("_%0.1f", ci_lower*100), state)]
+        los_wide_lower <- dcast(los, form, value.var='lower')
+        
+        # Combine into one
+        los_wide <- merge(merge(los_wide_mean, los_wide_lower, by=keys), 
+                          los_wide_upper, 
+                          by=keys)
+    } else {
+        los_wide <- dcast(los, t + start_state + individual ~ state, value.var='los')
     }
-
+    
     # Add in columns for each covariate name to replace the single 'individual' column
-    clean <- separate_covariates(los, colnames(newdata))
-    # Add state names in 
-    clean$state <- factor(clean$state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
+    clean <- separate_covariates(los_wide, colnames(newdata))
     clean
     
-    # TODO Should this return a wide table like how transition probability does?
+    # TODO Have t column display correct values!
 }

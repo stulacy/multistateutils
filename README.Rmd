@@ -337,7 +337,7 @@ run_debug <- function() {
 ```
 
 ```{r}
-length_of_stay(models, newdata, tmat, times=3*365.25, ci=TRUE, M=10)
+length_of_stay(models, newdata, tmat, times=3*365.25, ci=FALSE, M=10)
 ```
 
 ```{r}
