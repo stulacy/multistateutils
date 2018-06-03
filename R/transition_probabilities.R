@@ -1,15 +1,14 @@
-#' Calculates transition probabilities for multiple individuals.
-#'
-#' Calculates transition probabilities for specified parameters from state
-#' occupancies.
-#' @inheritParams predict_transitions
-#' @param occupancy State occupancy data.table as returned by \code{state_occupancy}.
-#' @param state_names Character vector containing the names of the states.
-#' @param end_times Times at which to estimate transition probabilities
-#'   transition probabilities, just length of stay.
-#'
-#' @return A data frame in long format with transition probabilities for each individual,
-#' for each starting time, and for each ending time.
+# Calculates transition probabilities for multiple individuals.
+#
+# Calculates transition probabilities for specified parameters from state
+# occupancies.
+# occupancy State occupancy data.table as returned by \code{state_occupancy}.
+# state_names Character vector containing the names of the states.
+# end_times Times at which to estimate transition probabilities
+#   transition probabilities, just length of stay.
+#
+# return A data frame in long format with transition probabilities for each individual,
+# for each starting time, and for each ending time.
 calculate_transition_probabilities <- function(occupancy, start_times, end_times, state_names, ci) {
 
     # Required by CRAN checks
@@ -120,7 +119,8 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     occupancy <- state_occupancy(models, trans_mat, newdata, N, tcovs, ci, M)
 
     # Estimate transition probabilities, this will add 'simulation' as a key if used
-    probs <- calculate_transition_probabilities(occupancy, start_times, times, colnames(trans_mat), ci)
+    probs <- calculate_transition_probabilities(occupancy, start_times, times, 
+                                                colnames(trans_mat), ci)
 
     if (ci) {
         # Make CIs

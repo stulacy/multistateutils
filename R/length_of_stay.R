@@ -1,29 +1,24 @@
-#' Calculates length of stay for multiple individuals.
-#'
-#' Uses an already formatted set of arguments to run the individual level
-#' simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
-#' and derives transition probabilities from the resulting state occupancies.
-#' @inheritParams predict_transitions
-#' @param occupancy State occupancy data.table as returned by \code{state_occupancy}.
-#' @param state_names Character vector containing the names of the states.
-#' @param end_times Times at which to estimate transition probabilities. If not provided then doesn't estimate
-#'   transition probabilities, just length of stay.
-#'
-#' @return A data frame in long format with transition probabilities for each individual,
-#' for each starting time, and for each ending time.
-#' TODO Could make this different to totls.simfs by allowing user to specify starting time as well?
-#' I.e. this currently just assumes state entry at time 0
+# Calculates length of stay for multiple individuals.
+#
+# Uses an already formatted set of arguments to run the individual level
+# simulation for each new individual (whereas \code{individual_simulation} only accepts 1 person)
+# and derives transition probabilities from the resulting state occupancies.
+#
+# occupancy State occupancy data.table as returned by \code{state_occupancy}.
+# state_names Character vector containing the names of the states.
+# end_times Times at which to estimate transition probabilities. If not provided then doesn't estimate
+#   transition probabilities, just length of stay.
+#
+# return A data frame in long format with transition probabilities for each individual,
+# for each starting time, and for each ending time.
+# TODO Could make this different to totls.simfs by allowing user to specify starting time as well?
+# I.e. this currently just assumes state entry at time 0
 calculate_los <- function(occupancy, start_states, times, state_names, ci, start_time=0) {
 
     # Required by CRAN checks
-    #id <- NULL
-    #state <- NULL
-    #time <- NULL
-    #end_time <- NULL
-    #individal <- NULL
-    #num_start <- NULL
-    #start_state <- NULL
-    #individual <- NULL
+    state <- NULL
+    time <- NULL
+    duration <- NULL
     
     occupancy[, state := state + 1]  # convert to 1-based index
     
@@ -35,8 +30,8 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
         los_keys <- c('simulation', los_keys)
     }
     
-    los <- data.table::rbindlist(lapply(setNames(times, times), function(t) {
-        data.table::rbindlist(lapply(setNames(start_states, start_states), function(s) {
+    los <- data.table::rbindlist(lapply(stats::setNames(times, times), function(t) {
+        data.table::rbindlist(lapply(stats::setNames(start_states, start_states), function(s) {
             # Filter to people in this starting state and remove state entries
             # that are after t
             this_state <- merge(occupancy[state == s & time == start_time, keys, with=F], 
@@ -89,6 +84,9 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
 length_of_stay <- function(models, newdata, trans_mat, times, start=1,
                            tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
                            ci_margin=0.95) {
+    
+    # Required by CRAN checks
+    state <- NULL
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
@@ -104,7 +102,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
         start <- start_int
     } else {
         # See if integer is valid one
-        if (!start %in% tmat[!is.na(tmat)])
+        if (!start %in% trans_mat[!is.na(trans_mat)])
             stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
     }
 
@@ -135,12 +133,12 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
         
         # Calculate summary values across simulations
         los <- los[, .(los=mean(los), 
-                           upper=quantile(los, ci_upper),
-                           lower=quantile(los, ci_lower)), 
+                           upper=stats::quantile(los, ci_upper),
+                           lower=stats::quantile(los, ci_lower)), 
                        by=keys_with_state]
         
         # Form wide tables with the estimate and CIs
-        form <- as.formula(paste(paste(keys, collapse='+'), 'state', sep='~'))
+        form <- stats::as.formula(paste(paste(keys, collapse='+'), 'state', sep='~'))
         los_wide_mean <- dcast(los, form, value.var='los')
         los[, state := sprintf("%s_%0.1f", state, ci_upper*100)]
         los_wide_upper <- dcast(los, form, value.var='upper')
