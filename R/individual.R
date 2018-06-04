@@ -1,14 +1,6 @@
-#' Runs an individual level simulation.
-#'
-#' Returns a data.table with state occupancy times for a single individual.
-#'
-#' @param transitions A list of transitions as required by \code{desCpp}.
-#' @param newdata_mat New data already in data matrix format as a single row
-#' @param trans_mat Transition matrix
-#' @param N Number of times to replicate this individual.
-#' @param tcovs Indices of covariates that are time-dependent and need to have the time
-#'   since simulation start added onto them at each intermediate state entry. Default is NULL.
-#' @return A data frame with entry times for each state that is entered.
+# Runs an individual level simulation.
+#
+# Returns a data.table with state occupancy times for a single individual.
 individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs) {
 
     # Form new data into matrix
@@ -31,16 +23,15 @@ individual_simulation <- function(transitions, newdata_mat, trans_mat, N, tcovs)
     desCpp(transitions, trans_mat, mat_exp, initial_times, start_states_long, tcovs)
 }
 
-#' Runs simulations for multiple individuals.
-#'
-#' Combines the data.tables for multiple individuals / simulations into
-#' a single table, with appropriate indexing.
-#'
-#' @inheritParams individual_simulation
-#' @param covar_values Data frame comprising the covariate values so that neat labels can be formed
-#'   for the output probability data frame.
-#'
-#' @return A data.table with state occupancies and key column 'individual'.
+# Runs simulations for multiple individuals.
+#
+# Combines the data.tables for multiple individuals / simulations into
+# a single table, with appropriate indexing.
+#
+# param covar_values Data frame comprising the covariate values so that neat labels can be formed
+#   for the output probability data frame.
+#
+# @return A data.table with state occupancies and key column 'individual'.
 multiple_simulations <- function(transitions, trans_mat, newdata_mat, N, tcovs, covar_values) {
     # Calculate state occupancy for each covariate pattern
     # Run simulation for each individual
@@ -57,14 +48,10 @@ multiple_simulations <- function(transitions, trans_mat, newdata_mat, N, tcovs, 
     data.table::setnames(resDT, c('individual', 'id', 'state', 'time'))
 }
 
-#' Determines state occupancy for individual level simulations.
-#'
-#' Returns a data table with state occupancy times for each individual,
-#' and also simulation if \code{ci} are requested.
-#'
-#' @inheritParams predict_transitions
-#'
-#' @return A data.table with state occupancies and key columns 'individual' and 'simulation' if appropriate.
+# Determines state occupancy for individual level simulations.
+#
+# Returns a data table with state occupancy times for each individual,
+# and also simulation if \code{ci} are requested.
 state_occupancy <- function(models, trans_mat, newdata, N, tcovs, ci, M) {
     # Obtain attributes as a matrix
     attr_mat <- form_model_matrix(newdata, models)

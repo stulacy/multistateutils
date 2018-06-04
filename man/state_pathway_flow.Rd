@@ -4,26 +4,31 @@
 \alias{state_pathway_flow}
 \title{Displays the predicted flow for a given individual through the system}
 \usage{
-state_pathway_flow(models, trans_mat, newdata, times)
+state_pathway_flow(models, trans_mat, newdata, times, starting_state = 1,
+  tcovs = NULL)
 }
 \arguments{
-\item{models}{A list of \code{flexsurv} survival models for
-each transition in \code{trans_mat}.}
+\item{models}{List of \code{flexsurvreg} objects.}
 
-\item{trans_mat}{A transition matrix.}
+\item{trans_mat}{Transition matrix, such as that used in \code{mstate}.}
 
 \item{newdata}{A data frame containing the attributes of the person
-to display the predicted state flow for. As the diagram can only 
+to display the predicted state flow for. As the diagram can only
 be displayed for a single individual it will ignore any rows
 after the first.}
 
 \item{times}{The time-points at which to estimate transition
 probabilities.}
+
+\item{starting_state}{Starting state. Either number or character name in \code{trans_mat}.}
+
+\item{tcovs}{As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
+incremented by the simulation clock at each transition, such as age when modelled as age at state entry.}
 }
 \value{
 The HTML widget.
 }
 \description{
-Produces an interactive HTML widget that displays a Sankey diagram showing a 
+Produces an interactive HTML widget that displays a Sankey diagram showing a
 predicted patient pathway through the multi-state model.
 }

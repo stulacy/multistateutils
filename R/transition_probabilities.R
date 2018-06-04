@@ -4,8 +4,7 @@
 # occupancies.
 # occupancy State occupancy data.table as returned by \code{state_occupancy}.
 # state_names Character vector containing the names of the states.
-# end_times Times at which to estimate transition probabilities
-#   transition probabilities, just length of stay.
+# end_times Times at which to estimate transition probabilities.
 #
 # return A data frame in long format with transition probabilities for each individual,
 # for each starting time, and for each ending time.

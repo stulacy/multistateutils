@@ -351,6 +351,15 @@ length_of_stay(models,
                tmat, times=c(1, 3, 5)*365.25)
 ```
 
+## State flow diagram
+
+
+```{r}
+time_points <- seq(0, 10, by=2) * 365.25
+state_pathway_flow(models, tmat, newdata, time_points, 'healthy')
+```
+
+
 ## Upcoming features
 
 I intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation. 
