@@ -24,7 +24,12 @@ state_pathway_flow <- function(models, trans_mat, newdata, times, starting_state
     entering_prob <- NULL
     prob_scale <- NULL
     
-    starting_state <- validate_starting_state(starting_state)
+    states <- colnames(trans_mat)
+    sinks <- get_sink_states(trans_mat)
+    
+    # This validates starting state and returns it as int. Index again to get state name
+    starting_state <- validate_starting_state(starting_state, trans_mat)
+    starting_state <- states[starting_state]
     
     if (nrow(newdata) > 1)
         newdata <- newdata[1, ]
@@ -33,8 +38,6 @@ state_pathway_flow <- function(models, trans_mat, newdata, times, starting_state
         times <- c(0, times)
     }
     
-    states <- colnames(trans_mat)
-    sinks <- get_sink_states(trans_mat)
     
     # For each time-point I want to:
     #  - Get transition probability of next time given current
