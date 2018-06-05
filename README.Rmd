@@ -66,13 +66,9 @@ devtools::find_rtools()
 
 Once `Rtools` is setup run `devtools::install_github("stulacy/RDES")` as above.
 
-## Examples
+## Example data
 
-This section will demonstrate how to use `rdes` for estimating transition probabilities from a multi-state model, and the additional features that it provides over using `flexsurv::pmatrix.simfs`.
-
-### Setup
-
- This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `rdes`. If you are unfamiliar with multi-state modelling then I would recommend reading @dewreede or the [`mstate` tutorial by Putter](https://cran.r-project.org/web/packages/mstate/vignettes/Tutorial.pdf).
+This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `rdes`. If you are unfamiliar with multi-state modelling then I would recommend reading @dewreede or the [`mstate` tutorial by Putter](https://cran.r-project.org/web/packages/mstate/vignettes/Tutorial.pdf).
  
 For these examples the `ebmt3` data set from `mstate` will be used. This provides a simple illness-death model of patients following transplant. The initial state is patient having received transplantation, *pr* referring to platelet recovery (the 'illness'), with relapse-free-survival (*rfs*) being the only sink state.
 
@@ -109,7 +105,7 @@ models <- lapply(1:3, function(i) {
 })
 ```
 
-### Estimating transition probabilities
+## Estimating transition probabilities
 
 Transition probabilities are defined as the probability of being in a state $j$ at a time $t$, given being in state $h$ at time $s$, as shown below where $X(t)$ gives the state an individual is in at $t$. This is all conditional on the individual parameterised by their covariates and history, which for this semi-Markov model only influences transition probabilities through state arrival times.
 
@@ -327,7 +323,7 @@ predict_transitions(models_mix, newdata, tmat, times=365)
 pmatrix.simfs(models_mix, tmat, newdata=newdata, t=365)
 ```
 
-### Length of stay
+## Length of stay
 
 Similarly, the length of stay functionality provided by `totlos.simfs` has also been extended to allow for estimates at multiple time-points, states, and individuals to be calculated at the same time. As shown below, the function parameters are very similar and the estimates are very close to those produced by `totlos.simf`.
 
