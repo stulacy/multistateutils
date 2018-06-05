@@ -1,6 +1,5 @@
 ---
 output: github_document
-always_allow_html: yes
 references:
 - id: dewreede
   title: "mstate: An R Package for the Analysis of Competing Risks and Multi-State Models"
@@ -61,7 +60,7 @@ devtools::install_github("stulacy/multistateutils")
 
 Note that since the simulation engine is written in C++, Windows users will need to have `Rtools` installed, which can be obtained from [https://cran.r-project.org/bin/windows/Rtools/](https://cran.r-project.org/bin/windows/Rtools/), and then set to the right path with:
 
-```{r, eval=F}
+```{r, eval=FALSE}
 devtools::find_rtools()
 ```
 
@@ -356,12 +355,14 @@ This visualization, an example of which is shown below for the 20-40 year old AM
 
 $$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
 
-```{r}
+```{r, eval=FALSE}
 time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 ```
 
-The output of this function is an HTML widget and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
+![](state_pathway.png)
+
+The output of this function is an HTML widget (which unfortunately can't be viewed on GitHub so the above is just a screenshot) and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
 
 ## Upcoming features
 

@@ -194,12 +194,12 @@ library(microbenchmark)
 microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, times=365),
                "flexsurv"=pmatrix.simfs(models, tmat, newdata=newdata, t=365), times=10)
 #> Unit: milliseconds
-#>             expr       min        lq     mean    median        uq
-#>  multistateutils 1216.4479 1252.3468 1337.812 1323.1886 1355.9860
-#>         flexsurv  267.7287  274.1208  317.505  308.4217  348.3074
+#>             expr       min        lq      mean    median        uq
+#>  multistateutils 1185.7363 1232.1730 1391.3562 1335.6107 1537.6964
+#>         flexsurv  281.8908  289.5027  337.2065  315.3138  399.3317
 #>        max neval cld
-#>  1540.5669    10   b
-#>   429.5864    10  a
+#>  1707.3394    10   b
+#>   441.2708    10  a
 ```
 
 ### Estimating probabilities at multiple times
@@ -311,8 +311,8 @@ microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, time
                }, times=10)
 #> Unit: seconds
 #>             expr      min       lq     mean   median       uq      max
-#>  multistateutils 1.778133 1.801094 1.844872 1.830591 1.863938 1.998411
-#>         flexsurv 2.526669 2.618701 2.700688 2.685703 2.822367 2.907867
+#>  multistateutils 1.725490 1.832531 1.862891 1.870418 1.896259 1.937528
+#>         flexsurv 2.580563 2.646698 2.758646 2.750763 2.898292 2.959831
 #>  neval cld
 #>     10  a 
 #>     10   b
@@ -414,8 +414,8 @@ microbenchmark("time"=predict_transitions(models, newdata, tmat,
                                           start_times = c(0.25, 0.5, 0.75)*365),
                times=10)
 #> Unit: seconds
-#>  expr      min      lq     mean   median       uq      max neval
-#>  time 1.547392 1.55685 1.591033 1.571526 1.578595 1.771171    10
+#>  expr      min       lq     mean   median       uq      max neval
+#>  time 1.653563 1.678925 1.699663 1.686601 1.720701 1.789666    10
 ```
 
 ### Multiple individuals
@@ -662,11 +662,9 @@ time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 ```
 
-<!--html_preserve-->
+![](state_pathway.png)
 
-<script type="application/json" data-for="htmlwidget-1a56834f3ddaf65a89c4">{"x":{"links":{"source":[0,1,2,3,4,0,1,6,2,7,3,8,4,9,0,1,6,11,2,7,12,3,8,13,4,9,14],"target":[1,2,3,4,5,6,7,7,8,8,9,9,10,10,11,12,12,12,13,13,13,14,14,14,15,15,15],"value":[35.4361557527784,24.0276878717105,17.9327505315079,14.0324639866048,11.3182926380733,20.7503797873191,3.91630965226841,16.98248760716,2.09405359701788,17.8916673573125,1.38101150151642,17.4811812398004,0.89745957728815,16.871860645621,43.8134644599025,7.49215822879949,3.76789218015913,43.8134644599025,4.0008837431848,3.00712990211587,55.0735148688611,2.51927504338667,2.50453971453001,62.0815285141618,1.81671177124334,1.99033209569579,67.1053432720784],"group":["healthy","healthy","healthy","healthy","healthy","healthy","healthy","illness","healthy","illness","healthy","illness","healthy","illness","healthy","healthy","illness","death","healthy","illness","death","healthy","illness","death","healthy","illness","death"]},"nodes":{"name":["","","","","","healthy","","","","","illness","","","","","death"],"group":["healthy","healthy","healthy","healthy","healthy","healthy","illness","illness","illness","illness","illness","death","death","death","death","death"]},"options":{"NodeID":"text","NodeGroup":"group","LinkGroup":"group","colourScale":"d3.scaleOrdinal(d3.schemeCategory20);","fontSize":12,"fontFamily":null,"nodeWidth":15,"nodePadding":50,"units":"","margin":{"top":null,"right":null,"bottom":null,"left":null},"iterations":100,"sinksRight":false}},"evals":[],"jsHooks":[]}</script>
-<!--/html_preserve-->
-The output of this function is an HTML widget and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
+The output of this function is an HTML widget (which unfortunately can't be viewed on GitHub so the above is just a screenshot) and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
 
 Upcoming features
 -----------------
