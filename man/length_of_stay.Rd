@@ -15,8 +15,7 @@ required by models.}
 
 \item{trans_mat}{Transition matrix, such as that used in \code{mstate}.}
 
-\item{times}{Times at which to estimate transition probabilities. If not provided then doesn't estimate
-transition probabilities, just length of stay.}
+\item{times}{Times at which to estimate length of stay.}
 
 \item{start}{Starting state. Either number or character name in \code{trans_mat}.}
 
@@ -32,7 +31,7 @@ incremented by the simulation clock at each transition, such as age when modelle
 \item{ci_margin}{Confidence interval range to use if \code{ci} is set to \code{TRUE}.}
 }
 \value{
-A list for each individual with items for length of stay and transition probabilities.
+A data frame containing length of stay estimates.
 }
 \description{
 Estimates length of stay in each state of an individual's passage 

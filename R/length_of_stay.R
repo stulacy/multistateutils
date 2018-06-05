@@ -63,20 +63,10 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
 #' through a multi-state model
 #' by discrete event simulation.
 #'
-#' @param models List of \code{flexsurvreg} objects.
-#' @param newdata Data frame with covariates of individual to simulate times for. Must contain all fields
-#'   required by models.
-#' @param trans_mat Transition matrix, such as that used in \code{mstate}.
+#' @inheritParams predict_transitions
 #' @param start Starting state. Either number or character name in \code{trans_mat}.
-#' @param times Times at which to estimate transition probabilities. If not provided then doesn't estimate
-#'   transition probabilities, just length of stay.
-#' @param tcovs As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
-#'   incremented by the simulation clock at each transition, such as age when modelled as age at state entry.
-#' @param N Number of times to repeat the individual
-#' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
-#' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
-#' @param ci_margin Confidence interval range to use if \code{ci} is set to \code{TRUE}.
-#' @return A list for each individual with items for length of stay and transition probabilities.
+#' @param times Times at which to estimate length of stay.
+#' @return A data frame containing length of stay estimates.
 #'
 #' @importFrom magrittr '%>%'
 #' @import data.table
@@ -94,17 +84,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
                     ncol(trans_mat), ")."))
     }
     
-    # Validate starting state, both if provided as character or int
-    if (is.character(start)) {
-        start_int <- match(start, colnames(trans_mat))
-        if (is.na(start_int))
-            stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
-        start <- start_int
-    } else {
-        # See if integer is valid one
-        if (!start %in% trans_mat[!is.na(trans_mat)])
-            stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
-    }
+    start <- validate_starting_state(start, trans_mat)
 
     # TODO More guards! Check nature of trans_mat, check that covariates required
     # by all models are in newdata. Although want state-occupancy specific guards to
