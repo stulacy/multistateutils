@@ -8,6 +8,8 @@ Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
 Description: Provides functions for working with multi-state modelling, such as efficient simulation routines for estimating transition probabilities and length of stay. See README for more details.
 License: GPL (>= 2)
 Imports: Rcpp (>= 0.12.10), data.table, dplyr, magrittr, networkD3, survival, tidyr
-Suggests: flexsurv, mstate, microbenchmark, rmarkdown
+Suggests: flexsurv, mstate, microbenchmark, rmarkdown,
+    knitr
 LinkingTo: Rcpp
 RoxygenNote: 6.0.1
+VignetteBuilder: knitr

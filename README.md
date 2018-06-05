@@ -195,11 +195,11 @@ microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, time
                "flexsurv"=pmatrix.simfs(models, tmat, newdata=newdata, t=365), times=10)
 #> Unit: milliseconds
 #>             expr       min        lq      mean    median        uq
-#>  multistateutils 1185.7363 1232.1730 1391.3562 1335.6107 1537.6964
-#>         flexsurv  281.8908  289.5027  337.2065  315.3138  399.3317
+#>  multistateutils 1094.7726 1130.6252 1145.4215 1140.3560 1156.8435
+#>         flexsurv  250.8299  255.0204  270.2238  258.4172  265.8866
 #>        max neval cld
-#>  1707.3394    10   b
-#>   441.2708    10  a
+#>  1228.2939    10   b
+#>   363.2786    10  a
 ```
 
 ### Estimating probabilities at multiple times
@@ -311,8 +311,8 @@ microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, time
                }, times=10)
 #> Unit: seconds
 #>             expr      min       lq     mean   median       uq      max
-#>  multistateutils 1.725490 1.832531 1.862891 1.870418 1.896259 1.937528
-#>         flexsurv 2.580563 2.646698 2.758646 2.750763 2.898292 2.959831
+#>  multistateutils 1.627977 1.741006 1.736634 1.747847 1.752240 1.762436
+#>         flexsurv 2.417078 2.427245 2.515325 2.534672 2.552515 2.675043
 #>  neval cld
 #>     10  a 
 #>     10   b
@@ -414,8 +414,8 @@ microbenchmark("time"=predict_transitions(models, newdata, tmat,
                                           start_times = c(0.25, 0.5, 0.75)*365),
                times=10)
 #> Unit: seconds
-#>  expr      min       lq     mean   median       uq      max neval
-#>  time 1.653563 1.678925 1.699663 1.686601 1.720701 1.789666    10
+#>  expr      min       lq    mean   median       uq      max neval
+#>  time 1.551713 1.564663 1.57469 1.571004 1.589108 1.602329    10
 ```
 
 ### Multiple individuals
@@ -662,7 +662,7 @@ time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 ```
 
-![](state_pathway.png)
+![](vignette/state_pathway.png)
 
 The output of this function is an HTML widget (which unfortunately can't be viewed on GitHub so the above is just a screenshot) and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
 
