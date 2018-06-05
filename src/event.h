@@ -6,9 +6,9 @@ class Simulation;
 class Event {
     public:
         Event(int, int, double, double);
+        int individual_id;
         int state_entering;
         double time;
-        int individual_id;
         double sim_entry;
         void processEvent(Simulation* sim);
 };
