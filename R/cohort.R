@@ -9,7 +9,7 @@
 #' @return A data frame with state entry times for each individual.
 #' @export
 #'
-#' @useDynLib rdes
+#' @useDynLib multistateutils
 #' @importFrom Rcpp evalCpp
 cohort_simulation <- function(models, newdata, trans_mat, start_times=NULL) {
 

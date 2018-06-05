@@ -2,6 +2,6 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 desCpp <- function(transitions, transmat, individual_attributes, initial_times, start_states, tcovs) {
-    .Call('_rdes_desCpp', PACKAGE = 'rdes', transitions, transmat, individual_attributes, initial_times, start_states, tcovs)
+    .Call('_multistateutils_desCpp', PACKAGE = 'multistateutils', transitions, transmat, individual_attributes, initial_times, start_states, tcovs)
 }
 

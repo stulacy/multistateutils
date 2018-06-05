@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // desCpp
 NumericMatrix desCpp(List transitions, IntegerMatrix transmat, NumericMatrix individual_attributes, NumericVector initial_times, NumericVector start_states, NumericVector tcovs);
-RcppExport SEXP _rdes_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP, SEXP individual_attributesSEXP, SEXP initial_timesSEXP, SEXP start_statesSEXP, SEXP tcovsSEXP) {
+RcppExport SEXP _multistateutils_desCpp(SEXP transitionsSEXP, SEXP transmatSEXP, SEXP individual_attributesSEXP, SEXP initial_timesSEXP, SEXP start_statesSEXP, SEXP tcovsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -23,11 +23,11 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rdes_desCpp", (DL_FUNC) &_rdes_desCpp, 6},
+    {"_multistateutils_desCpp", (DL_FUNC) &_multistateutils_desCpp, 6},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_rdes(DllInfo *dll) {
+RcppExport void R_init_multistateutils(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

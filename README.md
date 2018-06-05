@@ -1,9 +1,9 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-rdes
-====
+multistateutils
+===============
 
-`rdes` provides an extension of the simulation options provided in the R package `flexsurv` for obtaining predicted outcomes from multi-state models with parametric transition hazards. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretised into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates. It currently only has the ability for *estimating transition probabilities*, but additional features are in the pipeline, including:
+`multistateutils` provides an extension of the simulation options provided in the R package `flexsurv` for obtaining predicted outcomes from multi-state models with parametric transition hazards. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretized into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates. It currently only has the ability for *estimating transition probabilities*, but additional features are in the pipeline, including:
 
 -   Estimate length of stay
 -   Provide full cohort simulation
@@ -22,11 +22,11 @@ Examples of these features are provided below in *Examples*.
 Installation
 ------------
 
-You can install rdes from github with:
+You can install `multistateutils` from github with:
 
 ``` r
 install.packages("devtools")  # install devtools if it isn't already
-devtools::install_github("stulacy/RDES")
+devtools::install_github("stulacy/multistateutils")
 ```
 
 ### Windows
@@ -37,16 +37,12 @@ Note that since the simulation engine is written in C++, Windows users will need
 devtools::find_rtools()
 ```
 
-Once `Rtools` is setup run `devtools::install_github("stulacy/RDES")` as above.
+Once `Rtools` is setup run `devtools::install_github("stulacy/multistateutils")` as above.
 
-Examples
---------
+Example data
+------------
 
-This section will demonstrate how to use `rdes` for estimating transition probabilities from a multi-state model, and the additional features that it provides over using `flexsurv::pmatrix.simfs`.
-
-### Setup
-
-This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `rdes`. If you are unfamiliar with multi-state modelling then I would recommend reading de Wreede, Fiocco, and Putter (2011) or the [`mstate` tutorial by Putter](https://cran.r-project.org/web/packages/mstate/vignettes/Tutorial.pdf).
+This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `multistateutils`. If you are unfamiliar with multi-state modelling then I would recommend reading de Wreede, Fiocco, and Putter (2011) or the [`mstate` tutorial by Putter](https://cran.r-project.org/web/packages/mstate/vignettes/Tutorial.pdf).
 
 For these examples the `ebmt3` data set from `mstate` will be used. This provides a simple illness-death model of patients following transplant. The initial state is patient having received transplantation, *pr* referring to platelet recovery (the 'illness'), with relapse-free-survival (*rfs*) being the only sink state.
 
@@ -106,7 +102,8 @@ models <- lapply(1:3, function(i) {
 })
 ```
 
-### Estimating transition probabilities
+Estimating transition probabilities
+-----------------------------------
 
 Transition probabilities are defined as the probability of being in a state *j* at a time *t*, given being in state *h* at time *s*, as shown below where *X*(*t*) gives the state an individual is in at *t*. This is all conditional on the individual parameterised by their covariates and history, which for this semi-Markov model only influences transition probabilities through state arrival times.
 
@@ -128,7 +125,7 @@ The function that estimates transition probabilities is called `predict_transiti
 The code example below shows how to calculate transition probabilities for *t* = 365 (1 year) with *s* = 0; the transition probabilities for every state at 1 year after transplant given being in every state at transplant time. As with `pmatrix.simfs`, although all the probabilities for every pairwise combination of states are calculated, they are sometimes redundant. For example, *P*<sub>*h*, *j*</sub>(0, 365) where *h* = *j* = death is hardly a useful prediction.
 
 ``` r
-library(rdes)
+library(multistateutils)
 predict_transitions(models, newdata, tmat, times=365)
 #>     age dissub start_time end_time start_state   healthy   illness
 #> 1 20-40    AML          0      365     healthy 0.4689727 0.1960009
@@ -190,19 +187,19 @@ pmatrix.simfs(models, tmat, newdata=newdata, t=365, ci=TRUE, M=9)
 #> [1] "fs.msm.est"
 ```
 
-Note that on a single individual the speed-up isn't present, with `rdes` taking 4 times longer than `flexsurv`, although the difference between 1.2s and 0.3s isn't that noticeable in interactive work. The main benefit of `rdes` comes when estimating more involved probabilities, as will be demonstrated next.
+Note that on a single individual the speed-up isn't present, with `multistateutils` taking 4 times longer than `flexsurv`, although the difference between 1.2s and 0.3s isn't that noticeable in interactive work. The main benefit comes when estimating more involved probabilities, as will be demonstrated next.
 
 ``` r
 library(microbenchmark)
-microbenchmark("rdes"=predict_transitions(models, newdata, tmat, times=365),
+microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, times=365),
                "flexsurv"=pmatrix.simfs(models, tmat, newdata=newdata, t=365), times=10)
 #> Unit: milliseconds
-#>      expr       min        lq      mean    median        uq       max
-#>      rdes 1150.5473 1222.6471 1373.3478 1362.6924 1529.8049 1667.6759
-#>  flexsurv  287.2617  303.9191  325.4198  323.5685  338.1202  380.6438
-#>  neval cld
-#>     10   b
-#>     10  a
+#>             expr       min        lq     mean    median        uq
+#>  multistateutils 1216.4479 1252.3468 1337.812 1323.1886 1355.9860
+#>         flexsurv  267.7287  274.1208  317.505  308.4217  348.3074
+#>        max neval cld
+#>  1540.5669    10   b
+#>   429.5864    10  a
 ```
 
 ### Estimating probabilities at multiple times
@@ -305,22 +302,25 @@ do.call('rbind', lapply(seq(9)*365, function(t) {
 #> [27,] 0.00000 0.00000 1.00000
 ```
 
-By removing this boilerplate code, the speed increase of `rdes` starts to show, with the calculation of 8 additional time-points only increasing the runtime by 61% from 1.2s to 2s, while `flexsurv` has a twelve-fold increase from 0.3s to 3.7s.
+By removing this boilerplate code, the speed increase starts to show, with the calculation of 8 additional time-points only increasing the runtime by 61% from 1.2s to 2s, while `flexsurv` has a twelve-fold increase from 0.3s to 3.7s.
 
 ``` r
-microbenchmark("rdes"=predict_transitions(models, newdata, tmat, times=seq(9)*365),
+microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, times=seq(9)*365),
                "flexsurv"={do.call('rbind', lapply(seq(9)*365, function(t) {
                             pmatrix.simfs(models, tmat, newdata=newdata, t=t)}))
                }, times=10)
 #> Unit: seconds
-#>      expr      min       lq     mean   median       uq      max neval cld
-#>      rdes 1.901076 1.936707 2.085239 2.067634 2.208502 2.335424    10  a 
-#>  flexsurv 3.571404 3.768065 4.214759 3.998040 4.344338 5.455324    10   b
+#>             expr      min       lq     mean   median       uq      max
+#>  multistateutils 1.778133 1.801094 1.844872 1.830591 1.863938 1.998411
+#>         flexsurv 2.526669 2.618701 2.700688 2.685703 2.822367 2.907867
+#>  neval cld
+#>     10  a 
+#>     10   b
 ```
 
 ### Changing start time
 
-`pmatrix.simfs` limits the user to using *s* = 0. In `rdes` this is fully customisable. For example, the call below shows estimates the 1-year transition probabilities conditioned on the individual being alive at 6 months (technically it also calculates the transition probabilities conditioned on being dead at 6 months in the third row, but these aren't helpful). Notice how the probabilities of being dead at 1 year have decreased as a result.
+`pmatrix.simfs` limits the user to using *s* = 0. In `predict_transitions` this is fully customisable. For example, the call below shows estimates the 1-year transition probabilities conditioned on the individual being alive at 6 months (technically it also calculates the transition probabilities conditioned on being dead at 6 months in the third row, but these aren't helpful). Notice how the probabilities of being dead at 1 year have decreased as a result.
 
 ``` r
 predict_transitions(models, newdata, tmat, times=365, start_times = 365/2)
@@ -414,13 +414,13 @@ microbenchmark("time"=predict_transitions(models, newdata, tmat,
                                           start_times = c(0.25, 0.5, 0.75)*365),
                times=10)
 #> Unit: seconds
-#>  expr      min       lq     mean   median       uq      max neval
-#>  time 1.643836 1.797277 1.847317 1.876238 1.901303 2.026394    10
+#>  expr      min      lq     mean   median       uq      max neval
+#>  time 1.547392 1.55685 1.591033 1.571526 1.578595 1.771171    10
 ```
 
 ### Multiple individuals
 
-It's useful to be able to estimating transition probabilities for multiple individuals at once, for example to see how the outcomes differ for patients with different characteristics. `rdes` simply handles multiple rows supplied to `newdata`.
+It's useful to be able to estimating transition probabilities for multiple individuals at once, for example to see how the outcomes differ for patients with different characteristics. `predict_transitions` simply handles multiple rows supplied to `newdata`.
 
 ``` r
 newdata_multi <- data.frame(age=c("20-40", ">40"), dissub=c("AML", "CML"))
@@ -581,7 +581,7 @@ models_mix <- lapply(1:3, function(i) {
 })
 ```
 
-`rdes` handles these cases with no problems; currently the following distributions are supported:
+`predict_transitions` handles these cases with no problems; currently the following distributions are supported:
 
 -   Weibull
 -   Gamma
@@ -612,14 +612,68 @@ pmatrix.simfs(models_mix, tmat, newdata=newdata, t=365)
 #> [3,] 0.00000 0.00000 1.00000
 ```
 
+Length of stay
+--------------
+
+Similarly, the length of stay functionality provided by `totlos.simfs` has also been extended to allow for estimates at multiple time-points, states, and individuals to be calculated at the same time. As shown below, the function parameters are very similar and the estimates are very close to those produced by `totlos.simf`.
+
+``` r
+length_of_stay(models, 
+               newdata=newdata,
+               tmat, times=365.25*3,
+               start=1)
+#>         t start_state   age dissub  healthy illness    death
+#> 1 1095.75     healthy 20-40    AML 481.1478 208.125 406.4771
+```
+
+``` r
+totlos.simfs(models, tmat, t=365.25*3, start=1, newdata=newdata)
+#>        1        2        3 
+#> 483.7011 209.4513 402.5976
+```
+
+However, the advantage of this implementation is the same as `predict_transitions`, in that estimates can be produced from multiple conditions without needing to duplicate the simulations.
+
+``` r
+length_of_stay(models, 
+               newdata=data.frame(age=c(">40", ">40"),
+                                  dissub=c('CML', 'AML')),
+               tmat, times=c(1, 3, 5)*365.25)
+#>         t start_state age dissub  healthy   illness     death
+#> 1  365.25     healthy >40    AML 130.1801  42.08723  70.86068
+#> 2  365.25     healthy >40    CML 139.2083  40.53569  63.94207
+#> 3 1095.75     healthy >40    AML 264.6049 142.49200 322.28702
+#> 4 1095.75     healthy >40    CML 294.5851 142.16103 294.31188
+#> 5 1826.25     healthy >40    AML 343.8583 234.19292 637.58866
+#> 6 1826.25     healthy >40    CML 392.3378 239.72500 586.36722
+```
+
+State flow diagram
+------------------
+
+Another feature in `multistateutils` is a visualization of a predicted pathway through the state transition model, calculated using *dynamic prediction* and provided in the function `plot_predicted_pathway`. It estimates state occupancy probabilities at discrete time-points and displays the flow between them in the manner of a Sankey diagram.
+
+This visualization, an example of which is shown below for the 20-40 year old AML patient with biennial time-points, differs from traditional stacked line graph plots that only display estimates conditioned on a single time-point and starting state, i.e. a fixed *s* and *h* in the transition probability specification. `plot_predicted_pathway` instead displays dynamic predictions, where both *s* and *h* are allowed to vary and are updated at each time-point with the estimates.
+
+*P*<sub>*h*, *j*</sub>(*s*, *t*)=Pr(*X*(*t*)=*j* | *X*(*s*)=*h*)
+
+``` r
+time_points <- seq(0, 10, by=2) * 365.25
+plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
+```
+
+<!--html_preserve-->
+
+<script type="application/json" data-for="htmlwidget-1a56834f3ddaf65a89c4">{"x":{"links":{"source":[0,1,2,3,4,0,1,6,2,7,3,8,4,9,0,1,6,11,2,7,12,3,8,13,4,9,14],"target":[1,2,3,4,5,6,7,7,8,8,9,9,10,10,11,12,12,12,13,13,13,14,14,14,15,15,15],"value":[35.4361557527784,24.0276878717105,17.9327505315079,14.0324639866048,11.3182926380733,20.7503797873191,3.91630965226841,16.98248760716,2.09405359701788,17.8916673573125,1.38101150151642,17.4811812398004,0.89745957728815,16.871860645621,43.8134644599025,7.49215822879949,3.76789218015913,43.8134644599025,4.0008837431848,3.00712990211587,55.0735148688611,2.51927504338667,2.50453971453001,62.0815285141618,1.81671177124334,1.99033209569579,67.1053432720784],"group":["healthy","healthy","healthy","healthy","healthy","healthy","healthy","illness","healthy","illness","healthy","illness","healthy","illness","healthy","healthy","illness","death","healthy","illness","death","healthy","illness","death","healthy","illness","death"]},"nodes":{"name":["","","","","","healthy","","","","","illness","","","","","death"],"group":["healthy","healthy","healthy","healthy","healthy","healthy","illness","illness","illness","illness","illness","death","death","death","death","death"]},"options":{"NodeID":"text","NodeGroup":"group","LinkGroup":"group","colourScale":"d3.scaleOrdinal(d3.schemeCategory20);","fontSize":12,"fontFamily":null,"nodeWidth":15,"nodePadding":50,"units":"","margin":{"top":null,"right":null,"bottom":null,"left":null},"iterations":100,"sinksRight":false}},"evals":[],"jsHooks":[]}</script>
+<!--/html_preserve-->
+The output of this function is an HTML widget and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
+
 Upcoming features
 -----------------
 
-Future version of `rdes` will include the ability to estimate expected length of stay; similarly to how `predict_transitions` builds on `flexsurv::pmatrix.simfs`, this feature would extend `flexsurv::totlos.simfs`.
+I intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation.
 
-I also intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation.
-
-There is currently a web-app (not currently publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny)) that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `rdes` and also provide an interface for individual level simulations, such as estimating transition probabilities.
+There is currently a web-app (not currently publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny)) that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `multistateutils` and also provide an interface for individual level simulations, such as estimating transition probabilities.
 
 References
 ----------

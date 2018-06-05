@@ -1,11 +1,11 @@
-Package: rdes
+Package: multistateutils
 Type: Package
-Title: Discrete event simulation for multi-state modelling
+Title: Utility functions for parametric multi-state models
 Version: 1.1.0
 Date: 2018-06-05
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
-Description: Provides functions for working with multi-state modelling, such as efficient simulation routines for estimating transition probabilities. See README for more details.
+Description: Provides functions for working with multi-state modelling, such as efficient simulation routines for estimating transition probabilities and length of stay. See README for more details.
 License: GPL (>= 2)
 Imports: Rcpp (>= 0.12.10), data.table, dplyr, magrittr, networkD3, survival, tidyr
 Suggests: flexsurv, mstate, microbenchmark, rmarkdown
