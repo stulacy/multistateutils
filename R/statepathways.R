@@ -13,7 +13,8 @@
 #' @param starting_state Starting state. Either number or character name in \code{trans_mat}.
 #' @return The HTML widget.
 #' @export
-state_pathway_flow <- function(models, trans_mat, newdata, times, starting_state=1, tcovs=NULL) {
+plot_predicted_pathway <- function(models, trans_mat, newdata, times, starting_state=1, 
+                                   tcovs=NULL) {
     
     # R CMD CHECK
     start_time <- NULL

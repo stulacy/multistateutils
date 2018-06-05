@@ -2,8 +2,8 @@
 
 export(cohort_simulation)
 export(length_of_stay)
+export(plot_predicted_pathway)
 export(predict_transitions)
-export(state_pathway_flow)
 import(data.table)
 importFrom(Rcpp,evalCpp)
 importFrom(magrittr,'%>%')

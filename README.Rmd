@@ -31,7 +31,7 @@ set.seed(17)  # reproducible examples / runtimes
 
 # rdes
 
-`rdes` provides an extension of the simulation options provided in the R package `flexsurv` for obtaining predicted outcomes from multi-state models with parametric transition hazards. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretised into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates. It currently only has the ability for *estimating transition probabilities*, but additional features are in the pipeline, including:
+`rdes` provides an extension of the simulation options provided in the R package `flexsurv` for obtaining predicted outcomes from multi-state models with parametric transition hazards. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretized into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates. It currently only has the ability for *estimating transition probabilities*, but additional features are in the pipeline, including:
 
   - Estimate length of stay
   - Provide full cohort simulation
@@ -342,7 +342,7 @@ length_of_stay(models,
 totlos.simfs(models, tmat, t=365.25*3, start=1, newdata=newdata)
 ```
 
-However, the advantage of the implementation provided by `rdes` is that estimates can be produced from multiple conditions without needing to duplicate the simulations.
+However, the advantage of the implementation provided by `rdes` is that estimates can be produced from multiple conditions without needing to duplicate the simulations in the same manner as `predict_transitions`.
 
 ```{r}
 length_of_stay(models, 
@@ -353,12 +353,18 @@ length_of_stay(models,
 
 ## State flow diagram
 
+Another feature in `RDES` is a visualization of a predicted pathway through the state transition model, calculated using *dynamic prediction* and provided in the function `plot_predicted_pathway`. It estimates state occupancy probabilities at discrete time-points and displays the flow between them in the manner of a Sankey diagram. 
+
+This visualization, an example of which is shown below for the 20-40 year old AML patient with biennial time-points, differs from traditional stacked line graph plots that only display estimates conditioned on a single time-point and starting state, i.e. a fixed $s$ and $h$ in the transition probability specification. `plot_predicted_pathway` instead displays dynamic predictions, where both $s$ and $h$ are allowed to vary and are updated at each time-point with the estimates.
+
+$$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
 
 ```{r}
 time_points <- seq(0, 10, by=2) * 365.25
-state_pathway_flow(models, tmat, newdata, time_points, 'healthy')
+plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 ```
 
+The output of this function is an HTML widget and can be manipulated to layout the diagram to better suit your needs. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
 
 ## Upcoming features
 
