@@ -148,7 +148,7 @@ time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 ```
 
-![](vignette/state_pathway.png)
+![](vignettes/state_pathway.png)
 
 ## Upcoming features
 

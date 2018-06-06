@@ -39,7 +39,7 @@ This vignette aims to provide a more thorough introduction to the features in `m
 
 ## Example data
 
-This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `multistateutils`. If you are unfamiliar with multi-state modelling then I would recommend reading @dewreede or the [`mstate` tutorial by Putter](https://cran.r-project.org/web/packages/mstate/vignettes/Tutorial.pdf).
+This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `multistateutils`. If you are unfamiliar with multi-state modelling then I would recommend reading @dewreede or the [`mstate` tutorial by Putter](https://cran.r-project.org/package=mstate/vignettes/Tutorial.pdf).
  
 For these examples the `ebmt3` data set from `mstate` will be used. This provides a simple illness-death model of patients following transplant. The initial state is patient having received transplantation, *pr* referring to platelet recovery (the 'illness'), with relapse-free-survival (*rfs*) being the only sink state.
 
