@@ -5,11 +5,15 @@ Version: 1.1.0
 Date: 2018-06-05
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
-Description: Provides functions for working with multi-state modelling, such as efficient simulation routines for estimating transition probabilities and length of stay.
+Description: Provides functions for working with multi-state modelling, 
+    such as efficient simulation routines for estimating transition probabilities and length of stay.
+    It is designed as an extension to multi-state modelling capabilities provided with the flexsurv 
+    package (see Jackson (2016) <doi:10.18637/jss.v070.i08>).
 License: GPL (>= 2)
 Imports: Rcpp (>= 0.12.10), data.table, dplyr, magrittr, networkD3, survival, tidyr
 Suggests: flexsurv, mstate, microbenchmark, rmarkdown,
     knitr
+URL: https://github.com/stulacy/multistateutils
 LinkingTo: Rcpp
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr

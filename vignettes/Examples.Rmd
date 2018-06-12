@@ -198,7 +198,7 @@ predict_transitions(models, newdata_multi, tmat, times=365)
 
 As with multiple times, `pmatrix.simfs` only handles a single individual at a time.
 
-```{r exampleinds2, error=T}
+```{r exampleinds2, error=T, eval=T}
 pmatrix.simfs(models, tmat, newdata=newdata_multi, t=365)
 ```
 
@@ -331,5 +331,5 @@ $$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
 
 ```{r}
 time_points <- seq(0, 10, by=2) * 365.25
-plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
+plot_predicted_pathway(models, tmat, newdata, time_points, 1)
 ```
