@@ -9,32 +9,31 @@
 # @return A data frame with state entry times for each individual.
 # @export
 # @importFrom Rcpp evalCpp
-cohort_simulation <- function(models, newdata, trans_mat, start_times=NULL) {
+cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_state=1,
+                              time_limit=NULL,
+                              tcovs=NULL, M=1e3, ci=FALSE, ci_margin=0.95) {
 
-    # TODO Should I also provide a higher level function that handles things like
-    # time / #individual limit, censoring time, limiting death at 100?
-    # Or should this function handle it?
-    # Or should it even be provided at all, or just let user do it?
-
-    transitions <- models
-
-    mat <- stats::model.matrix(~., newdata)
-
-    if (!is.null(start_times) & length(start_times) != nrow(newdata) & length(start_times) != 1) {
-        stop(paste("Error: Please either provide a single value, or as many values as",
-                   "there are rows in newdata for start_times."))
-    }
-
-    entry_time <- NULL
-    if (!is.null(start_times) & length(start_times) == 1) {
-        entry_time <- start_times
-    } else if (is.null(start_times)) {
-        entry_time <- 0
-    }
-
-    if (!is.null(entry_time)) {
-        start_times <- rep(entry_time, nrow(mat))
-    }
-
-    desCpp(transitions, trans_mat, mat, start_times)
+    N <- nrow(newdata)
+    
+    if (length(start_time) == 1) 
+        start_time <- rep(start_time, N)
+    
+    if (length(start_state) == 1) 
+        start_state <- rep(start_state, N)
+    
+    # Guards
+    if (length(start_time) != N) 
+        stop("Error: start_time must have either as many values as rows in newdata, or 1.")
+    if (length(start_state) != N) 
+        stop("Error: start_time must have either as many values as rows in newdata, or 1.")
+    # check start times all positive
+    if (!all(start_time > 0)) 
+        stop("Error: must have positive start_time.")
+    start_state <- sapply(start_state, validate_starting_state, trans_mat)
+        
+    occupancy <- state_occupancy(models, trans_mat, newdata, tcovs, start_time, 
+                                 start_state, ci, M)
+    
+    # TODO what post-processing is required for cohort? Want to apply time-limit for starters
+    occupancy
 }
