@@ -191,3 +191,19 @@ get_visited_states <- function(start, trans_mat) {
         unique(unlist(c(start, sapply(vis, get_visited_states, trans_mat))))
     }
 }
+
+# For individual simulation, such as estimating transition probabilities or 
+# length of stay, we want to uniformly distribute them amongst the possible
+# starting states. 
+# This function determines these.
+obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
+    # Split people to evenly start in non-sink states.
+    # Assign 1 person per sink state to get probability of 1
+    is_sink <- apply(trans_mat, 1, function(col) all(is.na(col)))
+    sink_states <- unname(which(is_sink) - 1)  # 0-index for c++
+    non_sink <- setdiff(seq(ncol(trans_mat))-1, sink_states)
+
+    # Form vector of starting states, one per individual uniformly distributed
+    start_states_long <- sample(non_sink, nreps-length(sink_states), replace=T)
+    rep(c(start_states_long, sink_states), ninds)
+}

@@ -142,9 +142,16 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     # TODO More guards! Check nature of trans_mat, check that covariates required
     # by all models are in newdata. Although want state-occupancy specific guards to
     # be in 'state_occupancy'
-
+    
+    # Replicate new individuals, starting states, and times N times
+    newdata_ext <- newdata[rep(seq(nrow(newdata)), each=N), ]
+    start_states <- obtain_individual_starting_states(trans_mat, nrow(newdata), N)
+    initial_times <- rep(0, nrow(newdata_ext))
+    
     # Calculate state occupancies
-    occupancy <- state_occupancy(models, trans_mat, newdata, N, tcovs, ci, M)
+    occupancy <- state_occupancy(models, trans_mat, newdata_ext, tcovs, initial_times, 
+                                 start_states, ci, M)
+    
 
     # Estimate transition probabilities, this will add 'simulation' as a key if used
     probs <- calculate_transition_probabilities(occupancy, start_times, times, 
