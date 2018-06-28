@@ -12,6 +12,37 @@
 #'  probabilities.
 #' @param starting_state Starting state. Either number or character name in \code{trans_mat}.
 #' @return The HTML widget.
+#' 
+#' @examples 
+#' 
+#' library(multistateutils)
+#' library(mstate)
+#' library(flexsurv)
+#' 
+#' # Convert data to long
+#' data(ebmt3)
+#' tmat <- trans.illdeath()
+#' long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+#'                status=c(NA, 'prstat', 'rfsstat'), 
+#'                data=ebmt3, 
+#'                trans=tmat, 
+#'                keep=c('age', 'dissub'))
+#'                
+#' # Fit parametric models
+#' models <- lapply(1:3, function(i) {
+#'     flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+#' })
+#' 
+#' # New individual to estimate transition probabilities for
+#' newdata <- data.frame(age="20-40", dissub="AML")
+#' 
+#' # Plot pathway diagram at 2-yearly intervals up to 10-years 
+#' time_points <- seq(0, 10, by=2) * 365.25
+#' 
+#' \donttest{
+#' plot_predicted_pathway(models, tmat, newdata, time_points, 1)
+#' }
+#' 
 #' @export
 plot_predicted_pathway <- function(models, trans_mat, newdata, times, starting_state=1, 
                                    tcovs=NULL) {
@@ -25,12 +56,16 @@ plot_predicted_pathway <- function(models, trans_mat, newdata, times, starting_s
     entering_prob <- NULL
     prob_scale <- NULL
     
-    states <- colnames(trans_mat)
+    all_states <- colnames(trans_mat)
     sinks <- get_sink_states(trans_mat)
     
     # This validates starting state and returns it as int. Index again to get state name
-    starting_state <- validate_starting_state(starting_state, trans_mat)
-    starting_state <- states[starting_state]
+    starting_state_int <- validate_starting_state(starting_state, trans_mat)
+    starting_state <- all_states[starting_state_int]
+    
+    # Obtain names of states that are possible to visit in this pathway
+    visited_states_int <- get_visited_states(starting_state_int, trans_mat)
+    states <- all_states[visited_states_int]
     
     if (nrow(newdata) > 1)
         newdata <- newdata[1, ]
@@ -56,6 +91,7 @@ plot_predicted_pathway <- function(models, trans_mat, newdata, times, starting_s
                 dplyr::mutate(start_time = match(start_time, times),
                               end_time = match(end_time, times)) %>%
                 dplyr::select(start_time, end_time, start_state, dplyr::one_of(states)) %>%
+                dplyr::filter(start_state %in% states) %>%
                 tidyr::gather(end_state, prob, -start_time, -end_time, -start_state) %>%
                 dplyr::filter(!(start_time == 1 & start_state != starting_state)) %>%
                 dplyr::mutate(start_state = sprintf("%s.%d", start_state, start_time),

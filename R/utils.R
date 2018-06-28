@@ -161,13 +161,33 @@ DISTS <- list("weibull"=c("scale", "shape"),
 validate_starting_state <- function(start, trans_mat) {
     if (is.character(start)) {
         start_int <- match(start, colnames(trans_mat))
-        if (is.na(start_int))
-            stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
+        if (any(is.na(start_int)))
+            stop(paste0("Error: starting state '",
+                        start[is.na(start_int)], 
+                        "' not found in trans_mat."))
         start <- start_int
     } else {
         # See if integer is valid one
-        if (!start %in% trans_mat[!is.na(trans_mat)])
-            stop(paste0("Error: starting state '", start, "' not found in trans_mat."))
+        if (any(!start %in% seq_along(rownames(trans_mat))))
+            stop(paste0("Error: starting state '", 
+                        start[!start %in% seq_along(rownames(trans_mat))], 
+                        "' not found in trans_mat."))
     }
     start
+}
+
+# Function to obtain the list of possible states that can be visited
+# from a given starting state, for a state structure defined by
+# a transition-matrix
+# start Starting state as integer index in transition matrix
+# trans_mat Transition matrix where null indicates no transition.
+get_visited_states <- function(start, trans_mat) {
+    # Obtain the states that this starting state directly feeds into
+    vis <- unname(which(!is.na(trans_mat[start, ])))
+    if (length(vis) == 0) {
+        start
+    } else {
+        # Recursively build up a set of indices of visited states
+        unique(unlist(c(start, sapply(vis, get_visited_states, trans_mat))))
+    }
 }
