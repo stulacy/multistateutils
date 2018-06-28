@@ -1,15 +1,13 @@
-#' Function to obtain the transition list per transition model as required.
-#'
-#' @param mod A parametric survival model saved as a \code{flexsurvreg} object.
-#' @param attrs Attributes of a new individual as a data matrix.
-#' @param M Number of bootstrap simulations, set to 1 if no bootstrapping is used.
-#' @return A list with the following elements:
-#' \itemize{
-#'     \item name The distribution name as a string, as used by \code{flexsurv}.
-#'     \item coefs A nested list, with each child representing a distribution parameter and
-#'       being a list itself, containing 2 items. The first item is the (zero-based) indices in
-#'       \code{attrs} of the model coefficients, and the second contains the coefficients themselves.
-#' }
+# Function to obtain the transition list per transition model as required.
+#
+# param mod A parametric survival model saved as a flexsurvreg object.
+# param attrs Attributes of a new individual as a data matrix.
+# param M Number of bootstrap simulations, set to 1 if no bootstrapping is used.
+# return A list with the following elements:
+#   name The distribution name as a string, as used by flexsurv.
+#   coefs A nested list, with each child representing a distribution parameter and
+#     being a list itself, containing 2 items. The first item is the (zero-based) indices in
+#     attrs of the model coefficients, and the second contains the coefficients themselves.
 obtain_model_coef <- function(mod, attrs, M=1) {
     dist <- mod$dlist$name
     dist <- gsub("\\.[a-zA-Z]+", "", dist)
@@ -26,23 +24,23 @@ obtain_model_coef <- function(mod, attrs, M=1) {
     }
 }
 
-#' Utility function to obtain covariates as a list for a given distribution, parameterised
-#' by these arguments.
-#'
-#' This function should never be directly called, it is a helper function to reduce code repetition
-#' when making bootstrapped models.
-#'
-#' @param all_coefs A vector of all the coefficients from a model, including distribution coefficients,
-#'  which are located at the start of the vector.
-#' @param param_names Distribution parameter names as a character vector.
-#' @param mx The \code{mx} attribute of a \code{flexsurvreg} object, containing indices
-#'   of covariates in the coefficient list that act on each distribution parameter.
-#' @param attr_names Attribute names of the entire attribute matrix used for this model, as a character.
-#'   The model may only use a subset of these attributes in each its function, but it needs to know the
-#'   indices of the covariates it does use in the wider attribute matrix.
-#' @param dist The distribution name as a string as used by \code{flexsurvreg}.
-#'
-#' @return The transition list, as described by \code{obtain_model_coef}.
+# Utility function to obtain covariates as a list for a given distribution, parameterised
+# by these arguments.
+#
+# This function should never be directly called, it is a helper function to reduce code repetition
+# when making bootstrapped models.
+#
+# param all_coefs A vector of all the coefficients from a model, including distribution coefficients,
+#  which are located at the start of the vector.
+# param param_names Distribution parameter names as a character vector.
+# param mx The mx attribute of a flexsurvreg object, containing indices
+#   of covariates in the coefficient list that act on each distribution parameter.
+# param attr_names Attribute names of the entire attribute matrix used for this model, as a character.
+#   The model may only use a subset of these attributes in each its function, but it needs to know the
+#   indices of the covariates it does use in the wider attribute matrix.
+# param dist The distribution name as a string as used by flexsurvreg.
+#
+# return The transition list, as described by obtain_model_coef.
 coefs_as_list <- function(all_coefs, param_names, mx, attr_names, dist) {
 
     # for each distribution parameter, get the associated coefficients and find their index in the overall attribute matrix
@@ -68,13 +66,7 @@ coefs_as_list <- function(all_coefs, param_names, mx, attr_names, dist) {
     list(name=dist, coefs=coefs)
 }
 
-#' Creates data matrix from data frame and models.
-#'
-#' @param dataframe The data to be converted in a standard
-#'   \code{data.frame} object.
-#' @inheritParams predict_transitions
-#'
-#' @return A \code{data.matrix} with the data.
+# Creates data matrix from data frame and models.
 form_model_matrix <- function(dataframe, models) {
     # Obtain the coefficients used in all models
     cov_names <- unique(unlist(lapply(models, function(x) {
@@ -122,18 +114,17 @@ form_model_matrix <- function(dataframe, models) {
     stats::model.matrix(newform, dataframe)
 }
 
-#' Separates individuals who are indexed by a single column into their constituent covariates.
-#'
-#' Requires a data.table or data.frame that has a column called 'individual' that holds identifying
-#' information about that individual combined into a single column for use as a key. The format
-#' of this column is <covar_name>=<covar_value>,<covar2_name>=<covar2_value>...
-#'
-#' @param dt Input data source. Can be \code{data.table} or \code{data.frame}.
-#' @param covariates The covariate names that these individuals have, as a character string.
-#'   In the description above these are the <covar_name> values.
-#'
-#' @return A copy of the data with the 'individual' column removed and replaced by a column
-#'   for each covariate in \code{covariates} as a \code{data.frame}.
+# Separates individuals who are indexed by a single column into their constituent covariates.
+#
+# Requires a data.table or data.frame that has a column called 'individual' that holds identifying
+# information about that individual combined into a single column for use as a key. The format
+# of this column is <covar_name>=<covar_value>,<covar2_name>=<covar2_value>...
+#
+# param covariates The covariate names that these individuals have, as a character string.
+#   In the description above these are the <covar_name> values.
+#
+# return A copy of the data with the 'individual' column removed and replaced by a column
+#   for each covariate in covariates as a data.frame.
 separate_covariates <- function(dt, covariates) {
     # CMD CHECK
     individual <- NULL
@@ -148,6 +139,15 @@ separate_covariates <- function(dt, covariates) {
     proportions_df
 }
 
+# Used to get the states ids that have entered in LoS estimations 
+get_state_entries <- function(x) {
+    x[-length(x)]
+}
+
+get_sink_states <- function(tmat) {
+    rownames(tmat)[apply(tmat, 1, function(row) all(is.na(row)))]
+}
+
 DISTS <- list("weibull"=c("scale", "shape"),
               "gamma"=c("rate", "shape"),
               "exp"=c('rate'),
@@ -155,3 +155,39 @@ DISTS <- list("weibull"=c("scale", "shape"),
               "llogis"=c('scale', 'shape'),
               "gompertz"=c('rate', 'shape')
               )
+
+
+# Validates the starting state whether input as numeric or character
+validate_starting_state <- function(start, trans_mat) {
+    if (is.character(start)) {
+        start_int <- match(start, colnames(trans_mat))
+        if (any(is.na(start_int)))
+            stop(paste0("Error: starting state '",
+                        start[is.na(start_int)], 
+                        "' not found in trans_mat."))
+        start <- start_int
+    } else {
+        # See if integer is valid one
+        if (any(!start %in% seq_along(rownames(trans_mat))))
+            stop(paste0("Error: starting state '", 
+                        start[!start %in% seq_along(rownames(trans_mat))], 
+                        "' not found in trans_mat."))
+    }
+    start
+}
+
+# Function to obtain the list of possible states that can be visited
+# from a given starting state, for a state structure defined by
+# a transition-matrix
+# start Starting state as integer index in transition matrix
+# trans_mat Transition matrix where null indicates no transition.
+get_visited_states <- function(start, trans_mat) {
+    # Obtain the states that this starting state directly feeds into
+    vis <- unname(which(!is.na(trans_mat[start, ])))
+    if (length(vis) == 0) {
+        start
+    } else {
+        # Recursively build up a set of indices of visited states
+        unique(unlist(c(start, sapply(vis, get_visited_states, trans_mat))))
+    }
+}

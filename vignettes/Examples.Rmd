@@ -1,0 +1,335 @@
+---
+title: "Examples"
+author: "Stuart Lacy"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+references:
+- id: dewreede
+  title: "mstate: An R Package for the Analysis of Competing Risks and Multi-State Models"
+  author:
+  - family: de Wreede
+    given: Liesbeth C
+  - family: Fiocco
+    given: Marta
+  - family: Putter
+    given: Hein
+  container-title: Journal of Statistical Software
+  volume: 38
+  number: i07
+  type: article-journal
+  issued:
+    year: 2011
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+set.seed(17)  # For reproducibility's sake
+```
+
+## Introduction
+
+This vignette aims to provide a more thorough introduction to the features in `multistateutils` than the brief overview in the README. It uses the same example dataset and models, but has more examples and accompanying discussion.
+
+## Example data
+
+This guide assumes familiarity with multi-state modelling in R, this section in particular glosses over the details and just prepares models and data in order to demonstrate the features of `multistateutils`. If you are unfamiliar with multi-state modelling then I would recommend reading @dewreede or the [`mstate` tutorial by Putter](https://cran.r-project.org/package=mstate/vignettes/Tutorial.pdf).
+ 
+For these examples the `ebmt3` data set from `mstate` will be used. This provides a simple illness-death model of patients following transplant. The initial state is patient having received transplantation, *pr* referring to platelet recovery (the 'illness'), with relapse-free-survival (*rfs*) being the only sink state.
+
+```{r}
+library(mstate)
+data(ebmt3)
+head(ebmt3)
+```
+
+`mstate` provides a host of utility functions for working with multi-state models. For example, the `trans.illdeath()` function provides the required transition matrix for this state structure (`transMat` should be used when greater flexibility is required).
+
+```{r}
+tmat <- trans.illdeath()
+tmat
+```
+
+The final data preparation step is to form the data from a wide format (each row corresponding to a patient) to a long format, where each row represents a potential patient-transition. The `msprep` function from `mstate` handles this for us. We'll keep both the `age` and `dissub` covariates in this example.
+
+```{r}
+long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+               status=c(NA, 'prstat', 'rfsstat'), 
+               data=ebmt3, 
+               trans=tmat, 
+               keep=c('age', 'dissub'))
+head(long)
+```
+
+Clock-reset Weibull models will be fitted to these 3 transitions, which are semi-Markov models. Simulation is therefore needed to obtain transition probabilities as the Kolmogorov forward differential equation is no longer valid with the violation of the Markov assumption. We are going to assume that the baseline hazard isn't proportional between transitions and there are no shared transition effects for simplicity's sake.
+
+```{r}
+library(flexsurv)
+models <- lapply(1:3, function(i) {
+    flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+})
+```
+
+## Estimating transition probabilities
+
+Transition probabilities are defined as the probability of being in a state $j$ at a time $t$, given being in state $h$ at time $s$, as shown below where $X(t)$ gives the state an individual is in at $t$. This is all conditional on the individual parameterised by their covariates and history, which for this semi-Markov model only influences transition probabilities through state arrival times.
+
+$$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
+
+We'll estimate the transition probabilities of an individual with the covariates `age=20-40` and `dissub=AML` at 1 year after transplant.
+
+```{r}
+newdata <- data.frame(age="20-40", dissub="AML")
+```
+
+The function that estimates transition probabilities is called `predict_transitions` and has a very similar interface to `flexsurv::pmatrix.simfs`. The parameters in the above equation have the following argument names:
+
+  - $t$ - `times` (must be supplied)
+  - $s$ - `start_times` (defaults to 0)
+  - $h$ - not specified as the probabilities are calculated for all states
+  - $j$ - not specified as the probabilities are calculated for all states
+  
+The code example below shows how to calculate transition probabilities for $t=365$ (1 year) with $s=0$; the transition probabilities for every state at 1 year after transplant given being in every state at transplant time. As with `pmatrix.simfs`, although all the probabilities for every pairwise combination of states are calculated, they are sometimes redundant. For example, $P_{h,j}(0, 365)$ where $h=j=\text{death}$ is hardly a useful prediction.
+
+```{r example1}
+library(multistateutils)
+predict_transitions(models, newdata, tmat, times=365)
+```
+
+Note that this gives very similar responses to `pmatrix.simfs`.
+
+```{r example2}
+pmatrix.simfs(models, tmat, newdata=newdata, t=365)
+```
+
+Confidence intervals can be constructed in the same fashion as `pmatrix.simfs`, using draws from the multivariate-normal distribution of the parameter estimates.
+
+```{r example3}
+predict_transitions(models, newdata, tmat, times=365, ci=TRUE, M=10)
+```
+
+Which gives rather different results to those obtained from `pmatrix.simfs` which seem to be too wide and the estimate value is far different to that obtained when run without CIs. I'm unsure why this is the case.
+
+```{r example4}
+pmatrix.simfs(models, tmat, newdata=newdata, t=365, ci=TRUE, M=9)
+```
+
+Note that on a single individual the speed-up isn't present, with `multistateutils` taking 4 times longer than `flexsurv`, although the difference between 1.2s and 0.3s isn't that noticeable in interactive work. The main benefit comes when estimating more involved probabilities, as will be demonstrated next.
+
+```{r}
+library(microbenchmark)
+microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, times=365),
+               "flexsurv"=pmatrix.simfs(models, tmat, newdata=newdata, t=365), times=10)
+```
+
+### Estimating probabilities at multiple times
+
+Frequently, it is desirable to estimate transition probabilities at multiple values of $t$, in order to build up a picture of an individual's disease progression. `pmatrix.simfs` only allows a scalar for $t$, so estimating probabilities at multiple values requires manually iterating through the time-scale. In the example below we will calculate transition probabilities at yearly intervals for 9 years.
+
+```{r example5}
+predict_transitions(models, newdata, tmat, times=seq(9)*365)
+```
+
+In `pmatrix.simfs` it is up to the user to manipulate the output to make it interpretable. Again, the probabilities agree with each other.
+
+```{r example6}
+do.call('rbind', lapply(seq(9)*365, function(t) {
+    pmatrix.simfs(models, tmat, newdata=newdata, t=t)
+}))
+```
+
+By removing this boilerplate code, the speed increase starts to show, with the calculation of 8 additional time-points only increasing the runtime by 61% from 1.2s to 2s, while `flexsurv` has a twelve-fold increase from 0.3s to 3.7s.
+
+```{r benchmarkmultipletimes}
+microbenchmark("multistateutils"=predict_transitions(models, newdata, tmat, times=seq(9)*365),
+               "flexsurv"={do.call('rbind', lapply(seq(9)*365, function(t) {
+                            pmatrix.simfs(models, tmat, newdata=newdata, t=t)}))
+               }, times=10)
+```
+
+### Changing start time
+
+`pmatrix.simfs` limits the user to using $s=0$. In `predict_transitions` this is fully customisable. For example, the call below shows estimates the 1-year transition probabilities conditioned on the individual being alive at 6 months (technically it also calculates the transition probabilities conditioned on being dead at 6 months in the third row, but these aren't helpful). Notice how the probabilities of being dead at 1 year have decreased as a result.
+
+```{r}
+predict_transitions(models, newdata, tmat, times=365, start_times = 365/2)
+```
+
+Multiple values of $s$ can be provided, such as the quarterly predictions below.
+
+```{r}
+predict_transitions(models, newdata, tmat, times=365, 
+                    start_times = c(0.25, 0.5, 0.75) * 365)
+```
+
+Finally, any combination of number of $s$ and $t$ can be specified provided that all $s$ are less than $min(t)$. 
+
+```{r}
+predict_transitions(models, newdata, tmat, times=seq(2)*365, 
+                    start_times = c(0.25, 0.5, 0.75) * 365)
+```
+
+Note that obtaining these additional probabilities does not increase the runtime of the function.
+
+```{r}
+microbenchmark("time"=predict_transitions(models, newdata, tmat, 
+                                          times=seq(2)*365, 
+                                          start_times = c(0.25, 0.5, 0.75)*365),
+               times=10)
+```
+
+### Multiple individuals
+
+It's useful to be able to estimating transition probabilities for multiple individuals at once, for example to see how the outcomes differ for patients with different characteristics. `predict_transitions` simply handles multiple rows supplied to `newdata`.
+
+```{r}
+newdata_multi <- data.frame(age=c("20-40", ">40"), dissub=c("AML", "CML"))
+```
+
+```{r exampleinds1}
+predict_transitions(models, newdata_multi, tmat, times=365)
+```
+
+As with multiple times, `pmatrix.simfs` only handles a single individual at a time.
+
+```{r exampleinds2, error=T, eval=T}
+pmatrix.simfs(models, tmat, newdata=newdata_multi, t=365)
+```
+
+And the user has to manually iterate through each new individual they would like to estimate transition probabilities for.
+
+```{r exampleinds3}
+do.call('rbind', lapply(seq(nrow(newdata_multi)), function(i) {
+    pmatrix.simfs(models, tmat, newdata=newdata_multi[i, ], t=365)
+}))
+```
+
+### Time-dependent covariates
+
+The Markov assumption has already been violated by the use of a clock-reset time-scale, which is why we are using simulation in the first place. We can therefore add an other violation without it affecting our methodology. Owing to the use of clock-reset, the model does not take time-since-transplant into account for patients who have platelet recovery. This could be an important prognostic factor in that individual's survival. Similar scenarios are common in multi-state modelling, and are termed `state-arrival` times. We'll make a new set of models, where the transition from `pr` to `rfs` (transition 3) takes time-since-transplant into account. This information is already held in the `Tstart` variable produced by `msprep`.
+
+```{r}
+models_arrival <- lapply(1:3, function(i) {
+    if (i == 3) {
+        flexsurvreg(Surv(time, status) ~ age + dissub + Tstart, data=long, dist='weibull')
+    } else {
+        
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+    }
+})
+```
+
+Looking at the coefficient for this variable and it does seem to be prognostic for time-to-rfs.
+
+```{r}
+models_arrival[[3]]
+```
+
+To estimate transition probabilities for models with state-arrival times, the variables needs to be included in `newdata` with an **initial value**, i.e. the value this variable has when the global clock is 0.
+
+```{r}
+newdata_arrival <- data.frame(age="20-40", dissub="AML", Tstart=0)
+```
+
+Then in `predict_transitions` simply specify which variables in `newdata` are time-dependent, that is they increment at each transition along with the current clock value. This is particularly useful for modelling patient age at each state entry, rather than at the starting state. Notice how this slightly changes the probability of being in *death* from a person starting in *healthy* compared to the example below that omits the `tcovs` argument. 
+
+```{r}
+predict_transitions(models_arrival, newdata_arrival, tmat, times=365, tcovs='Tstart')
+```
+
+```{r}
+predict_transitions(models_arrival, newdata_arrival, tmat, times=365)
+```
+
+This functionality is implemented in `pmatrix.simfs`, but the `tcovs` argument actually has no impact on the transition probabilities, as evidenced below.
+
+```{r tcovs1}
+pmatrix.simfs(models_arrival, tmat, newdata=newdata_arrival, t=365, tcovs='Tstart')
+```
+
+```{r tcovs2}
+pmatrix.simfs(models_arrival, tmat, newdata=newdata_arrival, t=365)
+```
+
+### Mixture of distributions
+
+Sometimes greater flexibility in the model structure is required, so that every transition isn't obliged to use the same distribution. This could be useful if any transitions have few observations and would benefit from a simpler model such as an exponential, or if there is a requirement to use existing models from literature. Furthermore, if prediction is the goal, then it could be the case that allowing different distributions for each transition offers better overall fit.
+
+An example is shown below, where each transition uses a different distribution family.
+
+```{r}
+models_mix <- lapply(1:3, function(i) {
+    if (i == 1) {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+    } else if (i == 2) {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='exp')
+    } else {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='lnorm')
+    }
+})
+```
+
+`predict_transitions` handles these cases with no problems; currently the following distributions are supported:
+
+  - Weibull
+  - Gamma
+  - Exponential
+  - Log-normal
+  - Log-logistic
+  - Gompertz
+
+```{r}
+predict_transitions(models_mix, newdata, tmat, times=365)
+```
+
+`pmatrix.simfs` does not seem to function correctly under these situations.
+
+```{r}
+pmatrix.simfs(models_mix, tmat, newdata=newdata, t=365)
+```
+
+## Length of stay
+
+Similarly, the length of stay functionality provided by `totlos.simfs` has also been extended to allow for estimates at multiple time-points, states, and individuals to be calculated at the same time. As shown below, the function parameters are very similar and the estimates are very close to those produced by `totlos.simf`.
+
+```{r}
+length_of_stay(models, 
+               newdata=newdata,
+               tmat, times=365.25*3,
+               start=1)
+```
+
+```{r}
+totlos.simfs(models, tmat, t=365.25*3, start=1, newdata=newdata)
+```
+
+Rather than provide a example for each argument like in the previous section, the code chunk below demonstrates that vectors can be provided to both `times` and `start`, and `newdata` accept a data frame with multiple rows.
+
+```{r}
+length_of_stay(models, 
+               newdata=data.frame(age=c(">40", ">40"),
+                                  dissub=c('CML', 'AML')),
+               tmat, times=c(1, 3, 5)*365.25,
+               start=c('healthy', 'illness'))
+```
+
+## State flow diagram
+
+Another feature in `multistateutils` is a visualization of a predicted pathway through the state transition model, calculated using *dynamic prediction* and provided in the function `plot_predicted_pathway`. It estimates state occupancy probabilities at discrete time-points and displays the flow between them in the manner of a Sankey diagram. 
+
+This visualization, an example of which is shown below for the 20-40 year old AML patient with biennial time-points, differs from traditional stacked line graph plots that only display estimates conditioned on a single time-point and starting state, i.e. a fixed $s$ and $h$ in the transition probability specification. `plot_predicted_pathway` instead displays dynamic predictions, where both $s$ and $h$ are allowed to vary and are updated at each time-point.
+
+Note that the image below is actually an HTML widget and therefore **interactive** - try moving the states around. In the future I might try and implement a default optimal layout, along with explicitly displaying the time-scale.
+
+$$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
+
+```{r}
+time_points <- seq(0, 10, by=2) * 365.25
+plot_predicted_pathway(models, tmat, newdata, time_points, 1)
+```
