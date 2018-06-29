@@ -333,3 +333,11 @@ $$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
 time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 1)
 ```
+
+## Discrete event simulation
+
+
+```{r}
+res <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, time_limit=10*365.25)
+head(res)
+```

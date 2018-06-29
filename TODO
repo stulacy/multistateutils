@@ -1,1 +1,3 @@
-  - Make cohort simulation for calculating cohort probabilities (using things like accepting list of flexsurv models and doing all the converting, so the web front end is just that)
+  - Speed up the functions dealing with the covariate names as strings, i.e. forming the 'individual' column and then separating this back out (the latter doesn't currently use data.table so worth looking into that as well). Ideally, form integer index upon input (current 'id' col) and use that throughout, before finally adding in covariate columns at the end through a join rather than the hacky string concatenation method currently employed
+  - Add death by old age to LoS, transition probability, and cohort simulation
+  - Update vignette for cohort simulation, showing how can use different time-scales, starting states, time-limits etc...
