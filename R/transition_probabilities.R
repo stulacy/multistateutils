@@ -129,6 +129,9 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 predict_transitions <- function(models, newdata, trans_mat, times,
                                 start_times=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
                                 ci_margin=0.95) {
+    
+    # CMD CHECK
+    id <- NULL
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
@@ -152,6 +155,10 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     occupancy <- state_occupancy(models, trans_mat, newdata_ext, tcovs, initial_times, 
                                  start_states, ci, M)
     
+    # Add in individual IDs
+    individual_key <- data.table::data.table(id=seq(nrow(newdata_ext))-1,
+                                             individual=rep(seq(nrow(newdata)), each=N)-1)
+    occupancy <- individual_key[occupancy, on='id']
 
     # Estimate transition probabilities, this will add 'simulation' as a key if used
     probs <- calculate_transition_probabilities(occupancy, start_times, times, 
@@ -182,8 +189,10 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
         probs  <- merge2
     }
-
+    
     # Add in columns for each covariate name to replace the single 'individual' column
-    separate_covariates(probs, colnames(newdata))
-
+    newd_key <- data.table::as.data.table(clean_newdata(newdata, models))
+    clean <- newd_key[probs, on=c('id'='individual')]
+    clean[, id:=NULL]
+    as.data.frame(clean)
 }

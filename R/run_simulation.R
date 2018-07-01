@@ -3,6 +3,7 @@
 # Returns a data table with state occupancy times for each individual,
 # and also simulation if \code{ci} are requested.
 state_occupancy <- function(models, trans_mat, newdata, tcovs, start_times, start_states, ci, M) {
+    
     # Obtain attributes as a matrix
     attr_mat <- form_model_matrix(newdata, models)
 
@@ -31,16 +32,6 @@ state_occupancy <- function(models, trans_mat, newdata, tcovs, start_times, star
         })
         data.table::rbindlist(res, idcol='simulation')
     }
-    
-    # Obtain unique identifier for each individual from their covariate values 
-    # This just creates an N x p matrix with cols varp=foo, varp+1=bar, ...
-    raw_names <- sapply(seq(ncol(newdata)), function(i) paste(colnames(newdata)[i], 
-                                                              newdata[, i], 
-                                                              sep='='))
-    ind_id <- apply(raw_names, 1 , paste, collapse=",")
-    res[, individual := ind_id[id + 1]]
-    # Now link back to this by the ID column, which is zero-indexed
-    # Then want to combine these delimited by commas into a single string
     res
 }
 

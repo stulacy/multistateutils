@@ -336,8 +336,59 @@ plot_predicted_pathway(models, tmat, newdata, time_points, 1)
 
 ## Discrete event simulation
 
+In addition to predicting an individual's progression through the statespace, we can also simulate an entire cohort's passage.
+This is useful for situations where we have a heterogeneous cohort and are interested in group-level metrics, rather than individual ones; for example, the amount of time spent in each state for individuals with certain covariates.
+A common use is in health economic modelling, where multi-state models are used to represent patient treatment pathways, with costs associated with each treatment state.
+The application of multi-state modelling in these contexts is often referred to as **discrete event simulation**.
+
+The `cohort_simulation` function provides this functionality. 
+
+It is specified very similarly to the other functions in this package, requiring:
+
+  - a list of fitted `flexsurv` parametric models
+  - a transition matrix of the same format used above
+  - characteristics of individuals to be simulated stored in a data frame
 
 ```{r}
-res <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, time_limit=10*365.25)
-head(res)
+sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+```
+
+The output is a long data frame where each row corresponds to an individual entering a new state.
+The first rows below shows that every individual enters the system in state 1 at time 0, which is the default behaviour.
+
+```{r}
+head(sim)
+```
+
+These initial conditions can be changed; for example, the `start_state` argument accepts either a single value representing the state that everyone enters in, or a vector of values with as many entries as there are observations in `newdata`. 
+The simulation below evenly splits patients between starting in the initial state and platelet recovery (*illness*).
+
+```{r}
+sim2 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+                         start_state = sample(c(1, 2), nrow(ebmt3), replace=T))
+head(sim2)
+```
+
+Likewise, the individuals don't have to enter the simulation at time 0.
+The `start_time` parameter is specified in the same way as `start_state`, accepting either a single value or a vector containing a time for each individual. 
+The example below shows the case where individuals enter the system every 10 days (in the `ebmt3` dataset this is having a transplant).
+
+```{r}
+sim3 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+                         start_state = sample(c(1, 2), nrow(ebmt3), replace=T),
+                         start_time = seq(0, 10*(nrow(ebmt3)-1), by=10))
+head(sim3)
+```
+
+Sometimes it is appropriate to incorporate a time limit; for example, if we are interested in looking at the cost to the health care provider from treating a particular disease over 10 years.
+The `time_limit` argument allows for this specification, by stopping the simulation at the given time.
+
+The model below uses the same incidence model of a transplant every ten days, but now terminates at 10 years, which can be seen by the last state being entered at exactly 10 years.
+
+```{r}
+sim4 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+                         start_state = sample(c(1, 2), nrow(ebmt3), replace=T),
+                         start_time = seq(0, 10*(nrow(ebmt3)-1), by=10),
+                         time_limit = 10*365.25)
+tail(sim4)
 ```

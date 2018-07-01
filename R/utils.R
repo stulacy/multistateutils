@@ -207,3 +207,19 @@ obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
     start_states_long <- sample(non_sink, nreps-length(sink_states), replace=T)
     rep(c(start_states_long, sink_states), ninds)
 }
+
+# Obtains covariates that are used by these models
+get_covariates <- function(models) {
+    unique(unlist(lapply(models, function(mod) {
+        lapply(mod$data$mml, function(x) names(attr(x, 'contrasts')))
+    })))
+}
+
+clean_newdata <- function(newdata, models) {
+    # Filter newdata to covariates in models
+    used_covars <- get_covariates(models)
+    newdata <- newdata[, used_covars]
+    newdata$id <- seq(nrow(newdata)) - 1  # Add column id as rownumber 0-indexed
+    newdata
+}
+    
