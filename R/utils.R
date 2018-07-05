@@ -9,18 +9,32 @@
 #     being a list itself, containing 2 items. The first item is the (zero-based) indices in
 #     attrs of the model coefficients, and the second contains the coefficients themselves.
 obtain_model_coef <- function(mod, attrs, M=1) {
-    dist <- mod$dlist$name
-    dist <- gsub("\\.[a-zA-Z]+", "", dist)
-    attr_names <- colnames(attrs)
-    param_names <- DISTS[[dist]]
-
-    if (M == 1) {
-        coefs_as_list(stats::coef(mod), param_names, mod$mx, attr_names, dist)
+    if (class(mod) == 'oldage') {
+        list(name='oldage',
+             coefs=list(list(which(colnames(attrs) == mod$col)-1,
+                        mod$scale),
+                   list(0,
+                        mod$limit
+                        )))
+        
+    } else if (class(mod) == 'flexsurvreg') {
+        dist <- mod$dlist$name
+        dist <- gsub("\\.[a-zA-Z]+", "", dist)
+        attr_names <- colnames(attrs)
+        param_names <- DISTS[[dist]]
+    
+        if (M == 1) {
+            coefs_as_list(stats::coef(mod), param_names, mod$mx, attr_names, dist)
+        } else {
+            raw_coefs <- flexsurv::normboot.flexsurvreg(mod, M, transform=TRUE, raw=TRUE)
+            lapply(1:M, function(i) {
+                coefs_as_list(raw_coefs[i, ], param_names, mod$mx, attr_names, dist)
+            })
+        }
     } else {
-        raw_coefs <- flexsurv::normboot.flexsurvreg(mod, M, transform=TRUE, raw=TRUE)
-        lapply(1:M, function(i) {
-            coefs_as_list(raw_coefs[i, ], param_names, mod$mx, attr_names, dist)
-        })
+        stop(paste0("Error: Unknown model class '",
+                    class(mod), 
+                    "'. Only flexsurvreg or oldage are currently supported."))
     }
 }
 
@@ -69,9 +83,7 @@ coefs_as_list <- function(all_coefs, param_names, mx, attr_names, dist) {
 # Creates data matrix from data frame and models.
 form_model_matrix <- function(dataframe, models) {
     # Obtain the coefficients used in all models
-    cov_names <- unique(unlist(lapply(models, function(x) {
-        attr(x$concat.formula, "covnames")
-    })))
+    cov_names <- get_covariates(models)
 
     # Throw error if not all covariates are in newdata
     if (! all(cov_names %in% colnames(dataframe))) {
@@ -200,8 +212,8 @@ obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
     # Split people to evenly start in non-sink states.
     # Assign 1 person per sink state to get probability of 1
     is_sink <- apply(trans_mat, 1, function(col) all(is.na(col)))
-    sink_states <- unname(which(is_sink) - 1)  # 0-index for c++
-    non_sink <- setdiff(seq(ncol(trans_mat))-1, sink_states)
+    sink_states <- unname(which(is_sink)) 
+    non_sink <- setdiff(seq(ncol(trans_mat)), sink_states)
 
     # Form vector of starting states, one per individual uniformly distributed
     start_states_long <- sample(non_sink, nreps-length(sink_states), replace=T)
@@ -210,14 +222,19 @@ obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
 
 # Obtains covariates that are used by these models
 get_covariates <- function(models) {
-    unique(unlist(lapply(models, function(mod) {
-        lapply(mod$data$mml, function(x) names(attr(x, 'contrasts')))
+    cov_names <- unique(unlist(lapply(models, function(x) {
+        attr(x$concat.formula, "covnames")
     })))
 }
 
-clean_newdata <- function(newdata, models) {
+clean_newdata <- function(newdata, models, agelimit, agecol) {
     # Filter newdata to covariates in models
     used_covars <- get_covariates(models)
+    
+    if (is.numeric(agelimit)) {
+        if (! agecol %in% used_covars)
+            used_covars <- c(used_covars, agecol)
+    }
     newdata <- newdata[, used_covars]
     newdata$id <- seq(nrow(newdata)) - 1  # Add column id as rownumber 0-indexed
     newdata

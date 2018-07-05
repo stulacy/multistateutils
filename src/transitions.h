@@ -9,7 +9,7 @@ class Transition {
     public:
         Transition(std::string const&, int, List, std::vector<int>);
         static std::unique_ptr<Transition> create_transition(std::string const&, int, List, std::vector<int>);
-        double draw_event_time(Rcpp::NumericVector, double) const;
+        virtual double draw_event_time(Rcpp::NumericVector, double) const;
         virtual double draw(std::vector<double>, double) const = 0;
 
         const std::string name;
@@ -58,6 +58,7 @@ class OldAgeTransition: public Transition {
     using Transition::Transition;
     public:
         double draw(std::vector<double>, double) const;
+        double draw_event_time(Rcpp::NumericVector, double) const;
 };
 
 #endif

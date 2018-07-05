@@ -15,7 +15,8 @@
 #' @export
 cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_state=1,
                               time_limit=NULL,
-                              tcovs=NULL, M=1e3, ci=FALSE, ci_margin=0.95) {
+                              tcovs=NULL, M=1e3, ci=FALSE, ci_margin=0.95,
+                              agelimit=FALSE, agecol='age', agescale=365.25) {
     
     # Required by CRAN checks
     state <- NULL
@@ -24,7 +25,12 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
 
     N <- nrow(newdata)
     
-    newdata <- clean_newdata(newdata, models)
+    # TODO Validate age limit
+    # check that if agelimit isnt false, then is numeric, positive, agecol exists in newdata
+    # Have this function return trans_mat with oldage added, rather than having to do it in
+    # state_occupancy
+    
+    newdata <- clean_newdata(newdata, models, agelimit, agecol)
 
     if (length(start_time) == 1)
         start_time <- rep(start_time, N)
@@ -54,7 +60,7 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
     }
 
     occupancy <- state_occupancy(models, trans_mat, newdata, tcovs, start_time,
-                                 start_state, ci, M)
+                                 start_state, ci, M, agelimit, agecol, agescale)
     
     if (!is.null(time_limit))
         occupancy <- occupancy[time <= time_limit]
@@ -62,6 +68,5 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
     # Add covariates
     clean <- data.table::as.data.table(newdata)[occupancy, on='id']
     clean[, id := NULL]
-    clean[, state := rownames(trans_mat)[state]]
     as.data.frame(clean)
 }

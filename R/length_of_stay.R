@@ -11,16 +11,13 @@
 #
 # return A data frame in long format with transition probabilities for each individual,
 # for each starting time, and for each ending time.
-calculate_los <- function(occupancy, start_states, times, state_names, ci, start_time=0) {
+calculate_los <- function(occupancy, start_state_names, times, ci, start_time=0) {
 
     # Required by CRAN checks
     state <- NULL
     time <- NULL
     duration <- NULL
     
-    occupancy[, state := state + 1]  # convert to 1-based index
-    
-    nstates <- length(state_names)
     keys <- c('individual', 'id')
     los_keys <- c('individual', 'state')
     if (ci) {
@@ -29,7 +26,7 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
     }
     
     los <- data.table::rbindlist(lapply(stats::setNames(times, times), function(t) {
-        data.table::rbindlist(lapply(stats::setNames(start_states, start_states), function(s) {
+        data.table::rbindlist(lapply(stats::setNames(start_state_names, start_state_names), function(s) {
             # Filter to people in this starting state and remove state entries
             # that are after t
             this_state <- merge(occupancy[state == s & time == start_time, keys, with=F], 
@@ -100,7 +97,8 @@ calculate_los <- function(occupancy, start_states, times, state_names, ci, start
 #' @export
 length_of_stay <- function(models, newdata, trans_mat, times, start=1,
                            tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
-                           ci_margin=0.95) {
+                           ci_margin=0.95,
+                           agelimit=FALSE, agecol='age', agescale=365.25) {
     
     # Required by CRAN checks
     state <- NULL
@@ -123,18 +121,21 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     
     # Calculate state occupancies
     occupancy <- state_occupancy(models, trans_mat, newdata_ext, tcovs, initial_times, 
-                                 start_states, ci, M)
+                                 start_states, ci, M, agelimit, agecol, agescale)
+    
+    # As with calculate_transition_probabilities, I'm making the assumption that all states
+    # are visited. This is useful as it means that don't need to worry about redefining 
+    # the death_oldage state in every function
+    state_names <- levels(occupancy$state)
+    nstates <- length(state_names)
+    start_state_names <- state_names[start]
     
     # Add in key for individual
     individual_key <- data.table::data.table(id=seq(nrow(newdata_ext))-1,
                                              individual=rep(seq(nrow(newdata)), each=N)-1)
     occupancy <- individual_key[occupancy, on='id']
     
-    los <- calculate_los(occupancy, start, times, colnames(trans_mat), ci)
-    
-    # Use state names rather than indices
-    los$state <- factor(los$state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
-    los$start_state <- factor(los$start_state, levels=seq(ncol(trans_mat)), labels=colnames(trans_mat))
+    los <- calculate_los(occupancy, start_state_names, times, ci)
     
     if (ci) {
         # Form the unique indices and grab state names we're going to need for these summaries
@@ -169,11 +170,15 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
         los_wide <- dcast(los, t + start_state + individual ~ state, value.var='los')
     }
     
+    # Set starting state in right level order and reorder the target state columns
+    los_wide[, start_state := factor(start_state, levels=state_names)]
+    data.table::setcolorder(los_wide, c(colnames(los_wide)[seq(ncol(los_wide)-nstates)],
+                                        state_names))
     los_wide[, t := as.numeric(t)]
     setorder(los_wide, 't', 'start_state', 'individual')
     
     # Add in columns for each covariate name to replace the single 'individual' column
-    newd_key <- data.table::as.data.table(clean_newdata(newdata, models))
+    newd_key <- data.table::as.data.table(clean_newdata(newdata, models, agelimit, agecol))
     clean <- newd_key[los_wide, on=c('id'='individual')]
     clean[, id := NULL]
     as.data.frame(clean)
