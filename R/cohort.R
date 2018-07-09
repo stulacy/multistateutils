@@ -25,10 +25,7 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
 
     N <- nrow(newdata)
     
-    # TODO Validate age limit
-    # check that if agelimit isnt false, then is numeric, positive, agecol exists in newdata
-    # Have this function return trans_mat with oldage added, rather than having to do it in
-    # state_occupancy
+    validate_oldage(agelimit, agecol, newdata)
     
     newdata <- clean_newdata(newdata, models, agelimit, agecol)
 

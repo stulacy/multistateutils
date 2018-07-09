@@ -240,3 +240,15 @@ clean_newdata <- function(newdata, models, agelimit, agecol) {
     newdata
 }
     
+validate_oldage <- function(agelimit, agecol, newdata) {
+    if (agelimit == FALSE) {
+        return(TRUE)
+    }
+    
+    if (!(is.numeric(agelimit) && agelimit > 0))
+        stop("Error: If agelimit is provided it must be a positive numerical value.")
+    
+    if (!agecol %in% colnames(newdata)) 
+        stop(paste0("Error: agecol '", agecol, "' not found in newdata."))
+    
+}

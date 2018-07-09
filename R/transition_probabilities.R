@@ -158,6 +158,8 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
     if (any(sapply(start_times, function(s) s > times)))
         stop("Error: 'start_times' must be earlier than any value in 'times'.")
+    
+    validate_oldage(agelimit, agecol, newdata)
 
     # TODO More guards! Check nature of trans_mat, check that covariates required
     # by all models are in newdata. Although want state-occupancy specific guards to

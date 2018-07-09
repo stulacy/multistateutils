@@ -102,6 +102,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     
     # Required by CRAN checks
     state <- NULL
+    start_state <- NULL
     id <- NULL
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
@@ -111,6 +112,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     }
     
     start <- validate_starting_state(start, trans_mat)
+    validate_oldage(agelimit, agecol, newdata)
 
     # TODO More guards! Check nature of trans_mat, check that covariates required
     # by all models are in newdata. Although want state-occupancy specific guards to

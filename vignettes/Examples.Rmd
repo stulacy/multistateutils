@@ -26,6 +26,7 @@ references:
 ---
 
 ```{r setup, include = FALSE}
+library(dplyr)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -433,7 +434,6 @@ Can see that the maximum state entry time is now `r sim5 %>% top_n(1, time) %>% 
 **Again, these arguments are in the `predict_transitions` and `length_of_stay` functions too although they are less often useful.**
 
 ```{r}
-library(dplyr)
 sim5 %>%
     arrange(desc(time)) %>%
     head()

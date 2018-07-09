@@ -6,7 +6,8 @@
 \usage{
 cohort_simulation(models, newdata, trans_mat, start_time = 0,
   start_state = 1, time_limit = NULL, tcovs = NULL, M = 1000,
-  ci = FALSE, ci_margin = 0.95)
+  ci = FALSE, ci_margin = 0.95, agelimit = FALSE, agecol = "age",
+  agescale = 365.25)
 }
 \arguments{
 \item{models}{List of \code{flexsurvreg} objects.}
@@ -37,6 +38,18 @@ incremented by the simulation clock at each transition, such as age when modelle
 \item{ci}{Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.}
 
 \item{ci_margin}{Confidence interval range to use if \code{ci} is set to \code{TRUE}.}
+
+\item{agelimit}{Whether to automatically assign people to an 'early death' state. 
+This is useful as otherwise individuals can be assigned unrealistic time-to-events due to the
+nature of sampling times from a random number distribution.
+If this value is \code{FALSE} then no limit is applied, otherwise provide the time-limit
+to be used. This limit must be in the same time-scale as the time-to-event models.}
+
+\item{agecol}{The name of the column in \code{newdata} that holds an individual's age.}
+
+\item{agescale}{Any multiplication to be applied to the age covariate to put it onto the same
+time-scale as the simulation. This is often useful as time-to-event may be measured on a day-based
+time-scale while age is typically measured in years.}
 }
 \value{
 A data frame with state entry times for each individual.

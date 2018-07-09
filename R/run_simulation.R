@@ -66,6 +66,10 @@ state_occupancy <- function(models, trans_mat, newdata, tcovs, start_times, star
 }
 
 run_sim <- function(transitions, newdata_mat, trans_mat, tcovs, start_times, start_states) {
+    
+    # CMD CHECK
+    state <- NULL
+    
     if (is.null(tcovs))
         tcovs <- -1
     
