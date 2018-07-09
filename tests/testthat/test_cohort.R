@@ -1,0 +1,4 @@
+library(testthat)
+
+context("cohort")
+
