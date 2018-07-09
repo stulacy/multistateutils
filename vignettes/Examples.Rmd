@@ -26,6 +26,7 @@ references:
 ---
 
 ```{r setup, include = FALSE}
+library(dplyr)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -392,3 +393,49 @@ sim4 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat,
                          time_limit = 10*365.25)
 tail(sim4)
 ```
+
+## Old age mortality
+
+Problem with RNG is get unrealistic event times due to drawing from random number distribution that has been fitted to data that is missing follow-up on patients. 
+See below, the oldest patient dies `r sim %>% filter(state == 'death') %>% summarise(m=round(max(time)/365.25)) %>% pull(m)` years after the transplant!
+
+```{r}
+sim %>%
+    arrange(desc(time)) %>%
+    head()
+```
+
+To combat this, each of `prediction_transitions`, `length_of_stay`, and `cohort_simulation` allow the option to specify a hard limit after which a patient is considered dead.
+This is achieved through 3 arguments:
+
+  - `agelimit`: This is either `FALSE`, which means don't use a limit, or is set to the requested limit if used
+  - `agecol`: The column in `newdata` that holds the patient age at entry to the simulation (in the `ebmt3` dataset this is age at transplant.)
+  - `agescale`: Often, age is measured in a different time-scale to the rest of the study. For example in many health studies age will be measured in years but study time is on a months or days time-scale. This argument provides the multiplicative factor to be applied to the individual's age to get it on the same time-scale as the study
+  
+The example below shows how to use this in practice, firstly having to simulate continuous age values for the transplant patients as only binned group are provided with the data set.
+Here we are saying that anyone is considered dead at the age of 100 (not 100 years after having the transplant).
+
+```{r}
+# Make dataset with age in
+n_lt20 <- sum(ebmt3$age == '<=20')
+n_gt20 <- sum(ebmt3$age == '20-40')
+n_gt40 <- sum(ebmt3$age == '>40')
+ebmt3$age_cont <- 0
+ebmt3$age_cont[ebmt3$age == '<=20'] <- runif(n_lt20, 1, 20)
+ebmt3$age_cont[ebmt3$age == '20-40'] <- runif(n_gt20, 21, 40)
+ebmt3$age_cont[ebmt3$age == '>40'] <- runif(n_gt40, 40, 80)
+
+sim5 <- cohort_simulation(models, ebmt3[, c('age', 'dissub', 'age_cont')], tmat,
+                          agelimit=36525, agecol='age_cont')
+```
+
+Can see that the maximum state entry time is now `r sim5 %>% top_n(1, time) %>% mutate(time=round(time/365.25)) %>% pull(time)` years, which means they died at the age of `r sim5 %>% top_n(1, time) %>% mutate(agedead = round((age_cont * 365.25 + time) / 365.25)) %>% pull(agedead)`, showing that the hard limit is working.
+
+**Again, these arguments are in the `predict_transitions` and `length_of_stay` functions too although they are less often useful.**
+
+```{r}
+sim5 %>%
+    arrange(desc(time)) %>%
+    head()
+```
+

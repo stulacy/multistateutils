@@ -1,1 +1,3 @@
-  - Add death by old age to LoS, transition probability, and cohort simulation
+  - Add validation method for old age. Checking column exists in newdata (default to 'age' and scale=1)
+  - Add unit tests
+  - Create version of msprep that accepts a long input (id, state, time of entry) and transition matrix and produces the same as msprep. This is useful when states allow recurrent events, as msprep doesn't currently support this
