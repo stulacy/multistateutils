@@ -18,7 +18,7 @@ void Event::processEvent(Simulation* sim) {
         // Get next transition, as a pair of <state>,<entry time>
         std::pair<int, double> next_transition = entering_state->get_next_transition(sim->get_patient_attrs(individual_id),
                                                                                      (this->time - this->sim_entry));  // Time since entry
-
+        
         sim->add_event(Event(individual_id,
                              next_transition.first,  // state
                              next_transition.second + this->time,  // Transition time is relative, add it to clock

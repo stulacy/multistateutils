@@ -1,1 +1,2 @@
-  - Add death by old age to LoS, transition probability, and cohort simulation
+  - Add unit tests
+  - Create version of msprep that accepts a long input (id, state, time of entry) and transition matrix and produces the same as msprep. This is useful when states allow recurrent events, as msprep doesn't currently support this
