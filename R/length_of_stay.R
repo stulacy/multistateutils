@@ -59,7 +59,7 @@ calculate_los <- function(occupancy, start_state_names, times, ci, start_time=0)
 #' by discrete event simulation.
 #'
 #' @inheritParams predict_transitions
-#' @param start Starting state. Either number or character name in \code{trans_mat}.
+#' @param start_state Starting state. Either number or character name in \code{trans_mat}.
 #' @param times Times at which to estimate length of stay.
 #' @return A data frame containing length of stay estimates.
 #' 
@@ -95,14 +95,13 @@ calculate_los <- function(occupancy, start_state_names, times, ci, start_time=0)
 #' @importFrom magrittr '%>%'
 #' @import data.table
 #' @export
-length_of_stay <- function(models, newdata, trans_mat, times, start=1,
+length_of_stay <- function(models, newdata, trans_mat, times, start_state=1,
                            tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
                            ci_margin=0.95,
                            agelimit=FALSE, agecol='age', agescale=365.25) {
     
     # Required by CRAN checks
     state <- NULL
-    start_state <- NULL
     id <- NULL
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
@@ -111,7 +110,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
                     ncol(trans_mat), ")."))
     }
     
-    start <- validate_starting_state(start, trans_mat)
+    start_state <- validate_starting_state(start_state, trans_mat)
     validate_oldage(agelimit, agecol, newdata)
 
     # TODO More guards! Check nature of trans_mat, check that covariates required
@@ -130,7 +129,7 @@ length_of_stay <- function(models, newdata, trans_mat, times, start=1,
     # the death_oldage state in every function
     state_names <- levels(occupancy$state)
     nstates <- length(state_names)
-    start_state_names <- state_names[start]
+    start_state_names <- state_names[start_state]
     
     # Add in key for individual
     individual_key <- data.table::data.table(id=seq(nrow(newdata_ext))-1,

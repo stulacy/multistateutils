@@ -303,7 +303,7 @@ Similarly, the length of stay functionality provided by `totlos.simfs` has also 
 length_of_stay(models, 
                newdata=newdata,
                tmat, times=365.25*3,
-               start=1)
+               start_state='healthy')
 ```
 
 ```{r}
@@ -317,7 +317,7 @@ length_of_stay(models,
                newdata=data.frame(age=c(">40", ">40"),
                                   dissub=c('CML', 'AML')),
                tmat, times=c(1, 3, 5)*365.25,
-               start=c('healthy', 'illness'))
+               start_state=c('healthy', 'illness'))
 ```
 
 ## State flow diagram
