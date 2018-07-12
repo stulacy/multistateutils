@@ -13,6 +13,8 @@ knitr::opts_chunk$set(
 set.seed(17)  # reproducible examples / runtimes
 ```
 
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/multistateutils)](https://cran.r-project.org/package=multistateutils)
+
 # multistateutils
 
 `multistateutils` provides a number of useful functions for analyzing parametric multi-state models. In this way it does not aim to supplement the modelling strategies found in `mstate`, `msm`, or `flexsurv`, but rather provide tools for subsequent analysis. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretized into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates. 
