@@ -18,22 +18,18 @@ Examples of these features are provided below in *Examples*.
 Installation
 ------------
 
-You can install `multistateutils` from github with:
+You can install the latest release version from CRAN with:
+
+``` r
+install.packages("multistateutils")
+```
+
+Or the development version can also be installed directly from GitHub.
 
 ``` r
 install.packages("devtools")  # install devtools if it isn't already
 devtools::install_github("stulacy/multistateutils")
 ```
-
-### Windows
-
-Note that since the simulation engine is written in C++, Windows users will need to have `Rtools` installed, which can be obtained from <https://cran.r-project.org/bin/windows/Rtools/>, and then set to the right path with:
-
-``` r
-devtools::find_rtools()
-```
-
-Once `Rtools` is setup run `devtools::install_github("stulacy/multistateutils")` as above.
 
 Examples
 --------
