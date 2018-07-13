@@ -50,8 +50,6 @@ test_that("predict_transitions guards work", {
     # Incorrect times
     expect_error(predict_transitions(list(5, 20), newdata, tmat, times = -365))
     expect_error(predict_transitions(list(5, 20), newdata, tmat, times = 'stu'))
-    
-    
 })
 
 test_that("predict_transitions age limit works", {

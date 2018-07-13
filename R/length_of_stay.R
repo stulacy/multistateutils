@@ -110,6 +110,9 @@ length_of_stay <- function(models, newdata, trans_mat, times, start_state=1,
                     ncol(trans_mat), ")."))
     }
     
+    if (!is.numeric(times) || any(times <= 0))
+        stop("Error: times argument must be positive numeric.")
+    
     start_state <- validate_starting_state(start_state, trans_mat)
     validate_oldage(agelimit, agecol, newdata)
 
@@ -138,9 +141,10 @@ length_of_stay <- function(models, newdata, trans_mat, times, start_state=1,
     
     los <- calculate_los(occupancy, start_state_names, times, ci)
     
+    keys <- c('t', 'start_state', 'individual')
+    form <- stats::as.formula(paste(paste(keys, collapse='+'), 'state', sep='~'))
     if (ci) {
         # Form the unique indices and grab state names we're going to need for these summaries
-        keys <- c('t', 'start_state', 'individual')
         keys_with_state <- c(keys, 'state')
         states <- colnames(trans_mat)
 
@@ -156,7 +160,6 @@ length_of_stay <- function(models, newdata, trans_mat, times, start_state=1,
                        by=keys_with_state]
         
         # Form wide tables with the estimate and CIs
-        form <- stats::as.formula(paste(paste(keys, collapse='+'), 'state', sep='~'))
         los_wide_mean <- dcast(los, form, value.var='los')
         los[, state := sprintf("%s_%0.1f", state, ci_upper*100)]
         los_wide_upper <- dcast(los, form, value.var='upper')
@@ -168,11 +171,16 @@ length_of_stay <- function(models, newdata, trans_mat, times, start_state=1,
                           los_wide_upper, 
                           by=keys)
     } else {
-        los_wide <- dcast(los, t + start_state + individual ~ state, value.var='los')
+        los_wide <- dcast(los, form, value.var='los')
     }
     
     # Set starting state in right level order and reorder the target state columns
     los_wide[, start_state := factor(start_state, levels=state_names)]
+    end_state_names <- colnames(los_wide)[seq(length(keys)+1, ncol(los_wide))]
+    end_states_unused <- setdiff(state_names, end_state_names)
+    if (length(end_states_unused) > 0) {
+        los_wide[, (end_states_unused) := 0.0]
+    }
     data.table::setcolorder(los_wide, c(colnames(los_wide)[seq(ncol(los_wide)-nstates)],
                                         state_names))
     los_wide[, t := as.numeric(t)]
