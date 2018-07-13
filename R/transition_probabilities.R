@@ -70,13 +70,15 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
     # Set startstate column to be ordered in state order, and likewise destination 
     # state order
     start_states_used <- intersect(state_names, unique(proportions$start_state))
-    end_states_used <- intersect(state_names, end_state_names)
+    end_states_unused <- setdiff(state_names, end_state_names)
+    if (length(end_states_unused) > 0) {
+        proportions[, (end_states_unused) := 0.0]
+    }
     proportions[, start_state := factor(start_state, levels=start_states_used)]
     data.table::setcolorder(proportions, c(colnames(proportions)[seq(ncol(proportions)-nstates)],
-                                           end_states_used))
+                                           state_names))
     
     setorder(proportions, individual, start_time, end_time, start_state)
-
     proportions
 }
 

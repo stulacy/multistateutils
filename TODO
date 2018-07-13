@@ -1,4 +1,2 @@
   - Add unit tests
-  - Add CI
-  - Add badges (CRAN, CI)
   - Create version of msprep that accepts a long input (id, state, time of entry) and transition matrix and produces the same as msprep. This is useful when states allow recurrent events, as msprep doesn't currently support this
