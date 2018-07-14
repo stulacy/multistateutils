@@ -70,6 +70,5 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
     
     # Add covariates
     clean <- data.table::as.data.table(newdata)[occupancy, on='id']
-    clean[, id := NULL]
     as.data.frame(clean)
 }

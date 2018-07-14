@@ -150,10 +150,24 @@ plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 
 ![](vignettes/state_pathway.png)
 
+## Discrete event simulation
+
+The underlying simulation engine can be easily adapted to run cohort-wide simulation, where the output statistics of interest are now global measures rather than dependent on the individual.
+This is useful for estimating healthcare related values, such as the average time spent receiving treatment for a given disease population.
+
+These discrete event simulations are run with the `cohort_simulation` function as below.
+They simply require a list of models as specified above, a cohort population, and the transition matrix.
+It outputs a long table where each row is an observed state entry for a given individual. 
+
+```{r}
+sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+head(sim)
+```
+
+By default the simulation runs until every individual reaches a sink state, but a longitudinal specification can be provided, such that the individuals enter the simulation at set incident times and the simulation terminates after a predefined period.
+This functionality is useful when estimating statistics over a finite time-period, such as the expected number of deaths in a 5-year range, but it requires a model of the incidence process (i.e. how often a new patient is diagnosed).
+See the *Examples* vignette for further details.
+
 ## Upcoming features
 
-I intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation. 
-
-There is currently a web-app (not currently publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny))  that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `multistateutils` and also provide an interface for individual level simulations, such as estimating transition probabilities.
-
-## References
+There is currently a web-app (not publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny)) that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `multistateutils` and also provide an interface for individual level simulations, such as estimating transition probabilities.

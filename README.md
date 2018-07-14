@@ -1,22 +1,33 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-[![CRAN\_Status\_Badge](http://www.r-pkg.org/badges/version/multistateutils)](https://cran.r-project.org/package=multistateutils) [![Travis-CI Build Status](https://travis-ci.org/stulacy/multistateutils.svg?branch=master)](https://travis-ci.org/stulacy/multistateutils) [![Coverage Status](https://img.shields.io/codecov/c/github/stulacy/multistateutils/master.svg)](https://codecov.io/github/stulacy/multistateutils?branch=master)
 
-multistateutils
-===============
+[![CRAN\_Status\_Badge](http://www.r-pkg.org/badges/version/multistateutils)](https://cran.r-project.org/package=multistateutils)
+[![Travis-CI Build
+Status](https://travis-ci.org/stulacy/multistateutils.svg?branch=master)](https://travis-ci.org/stulacy/multistateutils)
+[![Coverage
+Status](https://img.shields.io/codecov/c/github/stulacy/multistateutils/master.svg)](https://codecov.io/github/stulacy/multistateutils?branch=master)
 
-`multistateutils` provides a number of useful functions for analyzing parametric multi-state models. In this way it does not aim to supplement the modelling strategies found in `mstate`, `msm`, or `flexsurv`, but rather provide tools for subsequent analysis. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretized into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates.
+# multistateutils
+
+`multistateutils` provides a number of useful functions for analyzing
+parametric multi-state models. In this way it does not aim to supplement
+the modelling strategies found in `mstate`, `msm`, or `flexsurv`, but
+rather provide tools for subsequent analysis. It is designed to be used
+with semi-Markov multi-state models of healthcare data, but can be used
+for any system that can be discretized into the states being entered at
+observed time-points, with parametric families providing appropriate
+fits for these transition rates.
 
 It currently provides several features:
 
--   Estimate transition probabilities
--   Estimate length of stay
--   Draw predicted pathways through the state space with dynamic prediction
+  - Estimate transition probabilities
+  - Estimate length of stay
+  - Draw predicted pathways through the state space with dynamic
+    prediction
 
 Examples of these features are provided below in *Examples*.
 
-Installation
-------------
+## Installation
 
 You can install the latest release version from CRAN with:
 
@@ -31,18 +42,24 @@ install.packages("devtools")  # install devtools if it isn't already
 devtools::install_github("stulacy/multistateutils")
 ```
 
-Examples
---------
+## Examples
 
-This section provides a brief overview of the features in `multistateutils`, please see the *Examples* vignette for a thorough description.
+This section provides a brief overview of the features in
+`multistateutils`, please see the *Examples* vignette for a thorough
+description.
 
 ### Setup
 
-In these examples we'll use the `ebmt3` data set provided in the `mstate` package. It describes recovery after bone marrow transplant. We'll model it with an illness-death model, with *transplant* as the starting state, platelet recovery *pr* as the illness state, and relapse-free survival *rfs* as the death state.
+In these examples we’ll use the `ebmt3` data set provided in the
+`mstate` package. It describes recovery after bone marrow transplant.
+We’ll model it with an illness-death model, with *transplant* as the
+starting state, platelet recovery *pr* as the illness state, and
+relapse-free survival *rfs* as the death state.
 
 ``` r
 library(mstate)
 #> Loading required package: survival
+#> Warning: package 'survival' was built under R version 3.5.1
 data(ebmt3)
 tmat <- trans.illdeath()                             # Form transition matrix
 long <- msprep(time=c(NA, 'prtime', 'rfstime'),      # Convert data to long
@@ -63,7 +80,11 @@ head(long)
 #> 6  2    2  3     3     35   360  325      1 >40    CML
 ```
 
-`multistateutils` is designed for applied modelling with an overall aim of prediction, particularly in health-related areas. For this reason it is designed to work with parametric transition models built with `flexsurv`. The example below fits a Weibull model to each transition using the `age` and `dissub` covariates.
+`multistateutils` is designed for applied modelling with an overall aim
+of prediction, particularly in health-related areas. For this reason it
+is designed to work with parametric transition models built with
+`flexsurv`. The example below fits a Weibull model to each transition
+using the `age` and `dissub` covariates.
 
 ``` r
 library(flexsurv)
@@ -72,14 +93,19 @@ models <- lapply(1:3, function(i) {
 })
 ```
 
-Estimating transition probabilities
------------------------------------
+## Estimating transition probabilities
 
-Transition probabilities are defined as the probability of being in a state *j* at a time *t*, given being in state *h* at time *s*, as shown below where *X*(*t*) gives the state an individual is in at *t*. This is all conditional on the individual parameterised by their covariates and history, which for this semi-Markov model only influences transition probabilities through state arrival times.
+Transition probabilities are defined as the probability of being in a
+state \(j\) at a time \(t\), given being in state \(h\) at time \(s\),
+as shown below where \(X(t)\) gives the state an individual is in at
+\(t\). This is all conditional on the individual parameterised by their
+covariates and history, which for this semi-Markov model only influences
+transition probabilities through state arrival times.
 
-*P*<sub>*h*, *j*</sub>(*s*, *t*)=Pr(*X*(*t*)=*j* | *X*(*s*)=*h*)
+\[P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)\]
 
-We'll estimate the transition probabilities of an individual with the covariates `age=20-40` and `dissub=AML` at 1 year after transplant.
+We’ll estimate the transition probabilities of an individual with the
+covariates `age=20-40` and `dissub=AML` at 1 year after transplant.
 
 ``` r
 newdata <- data.frame(age="20-40", dissub="AML")
@@ -98,7 +124,8 @@ predict_transitions(models, newdata, tmat, times=365)
 #> 3 1.0000000
 ```
 
-This functionality is already provided in `flexsurv::pmatrix.simfs`, but it is limited to assessing only one individual at a time, with *s* = 0
+This functionality is already provided in `flexsurv::pmatrix.simfs`, but
+it is limited to assessing only one individual at a time, with \(s=0\)
 
 ``` r
 pmatrix.simfs(models, tmat, newdata=newdata, t=365)
@@ -108,15 +135,18 @@ pmatrix.simfs(models, tmat, newdata=newdata, t=365)
 #> [3,] 0.00000 0.00000 1.00000
 ```
 
-`predict_transitions` on the other hand can estimate transition probabilities for:
+`predict_transitions` on the other hand can estimate transition
+probabilities for:
 
--   Multiple individuals
--   Multiple values of *t*
--   Multiple values of *s*
--   Any combination of the above, all from the same simulation
--   A mixture of distributions for the transition models
+  - Multiple individuals
+  - Multiple values of \(t\)
+  - Multiple values of \(s\)
+  - Any combination of the above, all from the same simulation
+  - A mixture of distributions for the transition models
 
-The ability to generate probabilities by varying *s* and *t* within a single simulation makes it very efficient for generating dynamic predictions.
+The ability to generate probabilities by varying \(s\) and \(t\) within
+a single simulation makes it very efficient for generating dynamic
+predictions.
 
 ``` r
 predict_transitions(models, newdata, tmat, times=c(1, 2)*365, 
@@ -149,18 +179,21 @@ predict_transitions(models, newdata, tmat, times=c(1, 2)*365,
 #> 12 1.00000000
 ```
 
-Length of stay
---------------
+## Length of stay
 
-Similarly, the length of stay functionality provided by `flexsurv::totlos.simfs` has also been extended to allow for estimates at multiple time-points, states, and individuals to be calculated simultaneously. As shown below, the function parameters are very similar and the estimates are very close to those produced by `totlos.simf`.
+Similarly, the length of stay functionality provided by
+`flexsurv::totlos.simfs` has also been extended to allow for estimates
+at multiple time-points, states, and individuals to be calculated
+simultaneously. As shown below, the function parameters are very similar
+and the estimates are very close to those produced by `totlos.simf`.
 
 ``` r
 length_of_stay(models, 
                newdata=newdata,
                tmat, times=365.25*3,
                start=1)
-#>         t start_state   age dissub  healthy  illness    death
-#> 1 1095.75     healthy 20-40    AML 486.1548 206.5854 403.0098
+#>     age dissub       t start_state  healthy  illness    death
+#> 1 20-40    AML 1095.75     healthy 486.1548 206.5854 403.0098
 ```
 
 ``` r
@@ -169,30 +202,40 @@ totlos.simfs(models, tmat, t=365.25*3, start=1, newdata=newdata)
 #> 485.7349 208.9578 401.0573
 ```
 
-Again, the advantage of this implementation is that estimates can be produced from multiple conditions without needing to rerun the simulation.
+Again, the advantage of this implementation is that estimates can be
+produced from multiple conditions without needing to rerun the
+simulation.
 
 ``` r
 length_of_stay(models, 
                newdata=data.frame(age=c(">40", ">40"),
                                   dissub=c('CML', 'AML')),
                tmat, times=c(1, 3, 5)*365.25)
-#>         t start_state age dissub  healthy   illness     death
-#> 1  365.25     healthy >40    AML 129.8734  42.52023  71.47468
-#> 2  365.25     healthy >40    CML 138.9012  38.72228  64.76035
-#> 3 1095.75     healthy >40    AML 263.7792 143.23360 324.59198
-#> 4 1095.75     healthy >40    CML 295.5594 137.13389 294.45822
-#> 5 1826.25     healthy >40    AML 344.5806 234.46875 640.29199
-#> 6 1826.25     healthy >40    CML 395.5353 231.76231 584.62158
+#>   age dissub       t start_state   healthy   illness     death
+#> 1 >40    CML  365.25     healthy 104.25817  30.42421  47.94261
+#> 2 >40    AML  365.25     healthy  97.19763  31.91332  53.51405
+#> 3 >40    CML 1095.75     healthy 220.66324 106.02685 221.18490
+#> 4 >40    AML 1095.75     healthy 198.67109 106.30842 242.89549
+#> 5 >40    CML 1826.25     healthy 294.19977 178.76934 440.15589
+#> 6 >40    AML 1826.25     healthy 259.80226 174.01172 479.31102
 ```
 
-State flow diagram
-------------------
+## State flow diagram
 
-Another feature in `multistateutils` is a visualization of a predicted pathway through the state transition model, calculated using *dynamic prediction* and provided in the function `plot_predicted_pathway`. It estimates state occupancy probabilities at discrete time-points and displays the flow between them in the manner of a Sankey diagram as shown below.
+Another feature in `multistateutils` is a visualization of a predicted
+pathway through the state transition model, calculated using *dynamic
+prediction* and provided in the function `plot_predicted_pathway`. It
+estimates state occupancy probabilities at discrete time-points and
+displays the flow between them in the manner of a Sankey diagram as
+shown below.
 
-The output of this function is an interactive HTML widget that can be manipulated to layout the diagram to better suit your needs. Unfortunately widgets can't be embedded in GitHub READMEs so the image below is just a screenshot, but have a look at the version in the vignette for an working example.
+The output of this function is an interactive HTML widget that can be
+manipulated to layout the diagram to better suit your needs.
+Unfortunately widgets can’t be embedded in GitHub READMEs so the image
+below is just a screenshot, but have a look at the version in the
+vignette for an working example.
 
-*P*<sub>*h*, *j*</sub>(*s*, *t*)=Pr(*X*(*t*)=*j* | *X*(*s*)=*h*)
+\[P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)\]
 
 ``` r
 time_points <- seq(0, 10, by=2) * 365.25
@@ -201,12 +244,46 @@ plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 
 ![](vignettes/state_pathway.png)
 
-Upcoming features
------------------
+## Discrete event simulation
 
-I intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation.
+The underlying simulation engine can be easily adapted to run
+cohort-wide simulation, where the output statistics of interest are now
+global measures rather than dependent on the individual. This is useful
+for estimating healthcare related values, such as the average time spent
+receiving treatment for a given disease population.
 
-There is currently a web-app (not currently publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny)) that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `multistateutils` and also provide an interface for individual level simulations, such as estimating transition probabilities.
+These discrete event simulations are run with the `cohort_simulation`
+function as below. They simply require a list of models as specified
+above, a cohort population, and the transition matrix. It outputs a long
+table where each row is an observed state entry for a given individual.
 
-References
-----------
+``` r
+sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+head(sim)
+#>     age dissub id   state time
+#> 1   >40    CML  0 healthy    0
+#> 2   >40    CML  2 healthy    0
+#> 3 20-40    CML  6 healthy    0
+#> 4   >40    CML 14 healthy    0
+#> 5  <=20    ALL 30 healthy    0
+#> 6  <=20    ALL 62 healthy    0
+```
+
+By default the simulation runs until every individual reaches a sink
+state, but a longitudinal specification can be provided, such that the
+individuals enter the simulation at set incident times and the
+simulation terminates after a predefined period. This functionality is
+useful when estimating statistics over a finite time-period, such as the
+expected number of deaths in a 5-year range, but it requires a model of
+the incidence process (i.e. how often a new patient is diagnosed). See
+the *Examples* vignette for further details.
+
+## Upcoming features
+
+There is currently a web-app (not publicly accessible but the [source
+code is on Github](https://github.com/stulacy/RDES-Shiny)) that provides
+a graphical interface for the entire multi-state modelling process and
+simulation process for a cohort simulation. I’d like to tidy this up and
+get it functioning with this new version of `multistateutils` and also
+provide an interface for individual level simulations, such as
+estimating transition probabilities.

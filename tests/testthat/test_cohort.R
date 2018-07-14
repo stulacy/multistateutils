@@ -17,7 +17,7 @@ models <- lapply(1:3, function(i) {
 
 test_that("cohort_simulation returns expected values", {
     sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
-    expect_equal(ncol(sim), 4)
+    expect_equal(ncol(sim), 5)
     expect_equal(nrow(sim) > nrow(ebmt3), TRUE)
     
     # Check have people in all 3 states
