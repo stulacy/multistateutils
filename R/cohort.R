@@ -22,6 +22,12 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
     state <- NULL
     id <- NULL
     time <- NULL
+    
+    if (ncol(trans_mat) != nrow(trans_mat)) {
+        stop(paste0("Error: trans_mat has differing number of rows and columns (",
+                    nrow(trans_mat), " and ",
+                    ncol(trans_mat), ")."))
+    }
 
     N <- nrow(newdata)
     

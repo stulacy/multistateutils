@@ -59,11 +59,15 @@ test_that("length_of_stay guards work", {
     
 
 test_that("length_of_stay age limit works", {
-    los1 <- length_of_stay(models, newdata, tmat, 36525, start_state=1)
+    nsims <- 1000
+    los1 <- length_of_stay(models, newdata, tmat, 36525, start_state=1,
+                           N=nsims)
     los2 <- length_of_stay(models, cbind(newdata, agecont=39), tmat, 365, start_state=1,
-                           agelimit=36525, agecol='agecont', agescale=365.25)
+                           agelimit=36525, agecol='agecont', agescale=365.25,
+                           N=nsims)
     los3 <- length_of_stay(models, cbind(newdata, agecont=39), tmat, 36525, start_state=1,
-                           agelimit=36525, agecol='agecont', agescale=365.25)
+                           agelimit=36525, agecol='agecont', agescale=365.25,
+                           N=nsims)
     
     # First model shouldnt have old age field because dont ask for it
     expect_equal("oldage" %in% colnames(los1), FALSE)
