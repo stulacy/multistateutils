@@ -31,6 +31,10 @@ msprep2 <- function(entry, tmat, censors=NULL,
     # TODO Do I need start_times & start_states or should I make it compulsory to 
     # include these in entry?
     
+    DEFAULT_START_TIME <- 0
+    DEFAULT_START_STATE <- 1
+    
+    
     # R CMD CHECK
     id <- NULL
     Tstop <- NULL
@@ -48,12 +52,19 @@ msprep2 <- function(entry, tmat, censors=NULL,
     trans <- NULL
     censor_time <- NULL
     
+    if (!idcol %in% colnames(entry))
+        stop(paste0("Error: id field '", idcol, "' not found in entry."))
+    if (!'time' %in% colnames(entry))
+        stop("Error: column 'time' not found in entry.")
+    if (!'state' %in% colnames(entry))
+        stop("Error: column 'state' not found in entry.")
     # TODO How to make this function work for repeated state entry?
-    # TODO Guards
     entry <- entry %>% 
-                dplyr::rename(id = idcol)
+                dplyr::rename(id = idcol, Tstop=time)
     # Build up list of unique_ids
     unique_ids <- unique(entry$id)
+    nstates <- ncol(tmat)
+    state_names <- colnames(tmat)
     
     if (!is.null(censors)) {
         censors <- censors %>% 
@@ -61,52 +72,91 @@ msprep2 <- function(entry, tmat, censors=NULL,
         unique_ids <- union(unique_ids, unique(censors$id))
     }
     if (!is.null(start_times)) {
+        if (!idcol %in% colnames(start_times))
+            stop(paste0("Error: id field '", idcol, "' not found in start_times."))
+        if (!'start_time' %in% colnames(start_times))
+            stop(paste0("Error: column start_time not found in start_times."))
         start_times <- start_times %>% 
                     dplyr::rename(id = idcol)
         unique_ids <- union(unique_ids, unique(start_times$id))
     }
     if (!is.null(start_states)) {
+        if (!idcol %in% colnames(start_states))
+            stop(paste0("Error: id field '", idcol, "' not found in start_states."))
+        if (!'start_state' %in% colnames(start_states))
+            stop(paste0("Error: column start_state not found in start_states."))
+        
+        ss <- start_states$start_state
+        if (is.factor(ss)) {
+            ss <- as.character(ss)
+            start_states$start_state <- as.character(start_states$start_state)
+        }
+        
+        if (!(is.numeric(ss) || is.character(ss))) 
+            stop("Error: start_state column must be state name or number.")
+        if (is.numeric(ss)) {
+            if (!all((ss %% 1) == 0))
+                stop("Error: start_state column must be state name or number.")
+            if (max(ss) > nstates || min(ss) < 1)
+                stop("Error: start_state column must be state name or number.")
+        }
+        if (is.character(ss)) {
+            if (!all(ss %in% state_names)) 
+                stop("Error: start_state column must be state name or number.")
+        }
+            
         start_states <- start_states %>% 
                     dplyr::rename(id = idcol)
         unique_ids <- union(unique_ids, unique(start_states$id))
     }
     if (!is.null(covars)) {
+        if (!idcol %in% colnames(covars))
+            stop(paste0("Error: id field '", idcol, "' not found in covars."))
         covars <- covars %>% 
                     dplyr::rename(id = idcol)
         unique_ids <- union(unique_ids, unique(covars$id))
     }
     
     if (is.null(start_states))
-        start_states <- data.frame(id=unique_ids, start_state=1)
+        start_states <- data.frame(id=unique_ids, start_state=DEFAULT_START_STATE)
     if (is.null(start_times))
-        start_times <- data.frame(id=unique_ids, start_time=0)
+        start_times <- data.frame(id=unique_ids, start_time=DEFAULT_START_TIME)
+    
+    # Guards
+    # Check that every individual has unique time
+    has_dups <- entry %>% 
+        group_by(id) %>% 
+        summarise(has_duplicate_times=sum(duplicated(Tstop))>0)
+    if (sum(has_dups$has_duplicate_times) > 0) {
+        stop("Error: each id in entry must have unique state entry times.")
+    }
     
     # Convert state names to numbers
-    state_names <- colnames(tmat)
-    
-    if (is.character(entry$state))
+    if (is.character(entry$state) || is.factor(entry$state)) 
         entry$state <- match(entry$state, state_names)
+    if (is.character(start_states$start_state) || is.factor(start_states$start_state))
+        start_states$start_state <- match(start_states$start_state, state_names)
     
     ntrans <- sum(!is.na(tmat))
     ninds <- length(unique_ids)
     
     # Now need to add starting state and times.
     # Firstly, obtain the rank order of each state entry
-    # TODO This would need guard on initial data input that each time
-    # is individual for each individual
     entry2 <- entry %>%
         dplyr::group_by(id) %>%
         dplyr::mutate(entry_order = dplyr::row_number(Tstop)) %>%
         dplyr::mutate(prev_state = dplyr::lag(state)) %>%
         dplyr::left_join(start_states, by='id') %>%
-        dplyr::mutate(prev_state = ifelse(is.na(prev_state), start_state, prev_state)) %>%
+        dplyr::mutate(start_state = ifelse(is.na(start_state), DEFAULT_START_STATE, start_state),
+                      prev_state = ifelse(is.na(prev_state), start_state, prev_state)) %>%
         dplyr::select(-start_state)
     
     # Likewise, obtain previous times
     entry3 <- entry2 %>% 
         dplyr::mutate(Tstart = dplyr::lag(Tstop)) %>%
         dplyr::left_join(start_times, by='id') %>%
-        dplyr::mutate(Tstart = ifelse(is.na(Tstart), start_time, Tstart)) %>%
+        dplyr::mutate(start_time = ifelse(is.na(start_time), DEFAULT_START_TIME, start_time),
+                      Tstart = ifelse(is.na(Tstart), start_time, Tstart)) %>%
         dplyr::select(-start_time) %>%
         dplyr::ungroup() %>%       
         dplyr::mutate(time = Tstop - Tstart, status=1) %>%
@@ -114,7 +164,6 @@ msprep2 <- function(entry, tmat, censors=NULL,
     
     # Now need to add the transitions that werent made
     # Need DF of all possible ids and transitions
-    nstates <- ncol(tmat)
     sink_states <- match(get_sink_states(tmat), state_names)
     trans_ids <- tmat[!is.na(tmat)]
     
@@ -134,11 +183,6 @@ msprep2 <- function(entry, tmat, censors=NULL,
         dplyr::mutate(status = ifelse(to.actual == to.possible, status, 0)) %>%
         dplyr::select(id, from, to=to.possible, trans, Tstart, Tstop, time, status)   # Clean up
     
-    # Add in covariates (just join onto covars by id)
-    if (!is.null(covars))
-        entry4 <- entry4 %>%
-                    dplyr::left_join(covars, by='id')
-    
     if (!is.null(censors)) {
         # Two types of people who have useful censor information.
         #   1. Those who never entered any state
@@ -151,6 +195,7 @@ msprep2 <- function(entry, tmat, censors=NULL,
             dplyr::filter(is.na(Tstop)) %>% 
             dplyr::select(id, start_state) %>%
             dplyr::left_join(start_times, by='id') %>%
+            dplyr::mutate(start_time = ifelse(is.na(start_time), DEFAULT_START_TIME, start_time)) %>%
             dplyr::rename(from=start_state, Tstart=start_time)
     
         # And identify those who joined the system but never entered sink state
@@ -169,12 +214,16 @@ msprep2 <- function(entry, tmat, censors=NULL,
             dplyr::left_join(tmat_long, by='from') %>%
             dplyr::left_join(censors, by='id') %>%
             dplyr::mutate(status=0, time=censor_time - Tstart) %>%
-            dplyr::select(id, from, to, trans, Tstart, Tstop=censor_time, time, status) %>%
-            dplyr::left_join(covars, by='id')
+            dplyr::select(id, from, to, trans, Tstart, Tstop=censor_time, time, status)
         
         # And finally add these censored observations to existing long DF
         entry4 <- entry4 %>%
                 rbind(censored_trans)
+    }
+    
+    if (!is.null(covars)) {
+        entry4 <- entry4 %>%
+                    left_join(covars, by='id')
     }
     
     entry4 %>%
