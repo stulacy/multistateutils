@@ -125,8 +125,8 @@ msprep2 <- function(entry, tmat, censors=NULL,
     # Guards
     # Check that every individual has unique time
     has_dups <- entry %>% 
-        group_by(id) %>% 
-        summarise(has_duplicate_times=sum(duplicated(Tstop))>0)
+        dplyr::group_by(id) %>% 
+        dplyr::summarise(has_duplicate_times=sum(duplicated(Tstop))>0)
     if (sum(has_dups$has_duplicate_times) > 0) {
         stop("Error: each id in entry must have unique state entry times.")
     }
@@ -223,7 +223,7 @@ msprep2 <- function(entry, tmat, censors=NULL,
     
     if (!is.null(covars)) {
         entry4 <- entry4 %>%
-                    left_join(covars, by='id')
+                    dplyr::left_join(covars, by='id')
     }
     
     entry4 %>%

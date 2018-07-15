@@ -59,7 +59,6 @@ relapse-free survival *rfs* as the death state.
 ``` r
 library(mstate)
 #> Loading required package: survival
-#> Warning: package 'survival' was built under R version 3.5.1
 data(ebmt3)
 tmat <- trans.illdeath()                             # Form transition matrix
 long <- msprep(time=c(NA, 'prtime', 'rfstime'),      # Convert data to long
