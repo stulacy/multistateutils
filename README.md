@@ -58,8 +58,6 @@ relapse-free survival *rfs* as the death state.
 
 ``` r
 library(mstate)
-#> Loading required package: survival
-#> Warning: package 'survival' was built under R version 3.5.1
 data(ebmt3)
 tmat <- trans.illdeath()                             # Form transition matrix
 long <- msprep(time=c(NA, 'prtime', 'rfstime'),      # Convert data to long
@@ -277,6 +275,125 @@ useful when estimating statistics over a finite time-period, such as the
 expected number of deaths in a 5-year range, but it requires a model of
 the incidence process (i.e. how often a new patient is diagnosed). See
 the *Examples* vignette for further details.
+
+## `msprep2`
+
+A large part of the work involved with multi-state modelling is basic
+munging of the data into a format suitable for modelling. The `msprep`
+function from the `mstate` package helps a lot here by converting a wide
+data frame where each row corresponds to a user with state entry times
+given in column, into a long format where each row represents a possible
+state transition.
+
+It does, however, have some slight limitations:
+
+  - Having to form a wide table in the first place with an entry time
+    and status indicator for each state can be a bit time consuming and
+    isn’t necessarily a natural way of storing such data
+  - This wide format only allows an individual to enter a state once
+  - For censored state transitions it can be awkward having to replicate
+    the censoring time for each non-visited state
+
+For these reasons I’ve created a modified version of `msprep`,
+imaginatively called `msprep2`, that performs the same role but accepts
+the input data as a tidy table of state entry times rather than a wide
+table at the individual level.
+
+In this format, each row in the input data frame corresponds to a known
+state entry time, and so non-visited states are simply omitted. The
+input data frame only needs 3 columns: an individual id, a state id, and
+the time of entry. Covariates and censoring information are provided by
+separate data frames that link back on the id, providing a cleaner
+interface and one that works well with data that is stored in relational
+databases.
+
+The example below shows the data preparation for 2 individuals:
+
+1.  Enters state 2 at \(t=23\) then no more transitions until last
+    follow-up at \(t=744\)
+2.  Enters state 2 at \(t=35\) then enters the absorptive state 3 at
+    \(t=360\)
+
+<!-- end list -->
+
+``` r
+entry <- data.frame(id=c(1, 2, 2),
+                    state=c(2, 2, 3),
+                    time=c(23, 35, 360))
+cens <- data.frame(id=1, censor_time=744)
+covars <- data.frame(id=1:2, age=c('>40', '20-40'), dissub=c('CML', 'AML'))
+msprep2(entry, tmat, censors = cens, covars = covars)
+#> # A tibble: 6 x 10
+#>      id  from    to trans Tstart Tstop  time status age   dissub
+#>   <dbl> <dbl> <dbl> <chr>  <dbl> <dbl> <dbl>  <dbl> <fct> <fct> 
+#> 1     1     1     2 1          0    23    23      1 >40   CML   
+#> 2     1     1     3 2          0    23    23      0 >40   CML   
+#> 3     1     2     3 3         23   744   721      0 >40   CML   
+#> 4     2     1     2 1          0    35    35      1 20-40 AML   
+#> 5     2     1     3 2          0    35    35      0 20-40 AML   
+#> 6     2     2     3 3         35   360   325      1 20-40 AML
+```
+
+By specifying state entry as a long table there is now no limit to how
+many times a state can be entered by an individual. Let’s demonstrate
+this by extending the illness-death model to allow a patient to recover
+(i.e. transition from illness back to healthy).
+
+``` r
+states <- c('healthy', 'illness', 'death')
+tmat2 <- matrix(c(NA, 3, NA, 1, NA, NA, 2, 4, NA), nrow=3, ncol=3, 
+                dimnames=list(states, states))
+tmat2
+#>         healthy illness death
+#> healthy      NA       1     2
+#> illness       3      NA     4
+#> death        NA      NA    NA
+```
+
+I’ll create a dummy dataset with one individual moving from
+healthy-\>illness-\>death at times 6 and 11, while patient 2 goes from
+healthy-\>illness, then is cured and goes back to healthy, before moving
+back to illness and finally dying.
+
+``` r
+multistate_entry <- data.frame(id=c(rep(1, 2),
+                                    rep(2, 4)),
+                               state=c('illness', 'death',
+                                       'illness', 'healthy', 'illness', 'death'),
+                               time=c(6, 11,
+                                      7, 12, 17, 22))
+multistate_entry
+#>   id   state time
+#> 1  1 illness    6
+#> 2  1   death   11
+#> 3  2 illness    7
+#> 4  2 healthy   12
+#> 5  2 illness   17
+#> 6  2   death   22
+```
+
+As seen below, `msprep2` has no problem converting this into a list of
+possible transitions. Note that we don’t need to pass in anything to
+`censors` because we have complete follow-up on both patients.
+
+``` r
+msprep2(multistate_entry, tmat2)
+#> # A tibble: 12 x 8
+#>       id  from    to trans Tstart Tstop  time status
+#>    <dbl> <dbl> <dbl> <chr>  <dbl> <dbl> <dbl>  <dbl>
+#>  1     1     1     2 1          0     6     6      1
+#>  2     1     1     3 2          0     6     6      0
+#>  3     1     2     1 3          6    11     5      0
+#>  4     1     2     3 4          6    11     5      1
+#>  5     2     1     2 1          0     7     7      1
+#>  6     2     1     3 2          0     7     7      0
+#>  7     2     2     1 3          7    12     5      1
+#>  8     2     2     3 4          7    12     5      0
+#>  9     2     1     2 1         12    17     5      1
+#> 10     2     1     3 2         12    17     5      0
+#> 11     2     2     1 3         17    22     5      0
+#> 12     2     2     3 4         17    22     5      1
+```
 
 ## Upcoming features
 

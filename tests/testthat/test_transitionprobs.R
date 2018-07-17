@@ -53,7 +53,7 @@ test_that("predict_transitions guards work", {
 })
 
 test_that("predict_transitions age limit works", {
-    nsims <- 100
+    nsims <- 1000
     rdes <- predict_transitions(models, newdata, tmat, times = 36525, N=nsims)
     # Test that without age limits the probabilities of non-death are non-zero
     expect_equal(all(rdes[1:2, 8] < 1), TRUE)
@@ -63,6 +63,6 @@ test_that("predict_transitions age limit works", {
                                          agelimit=36525, agecol = 'agecont', agescale = 365.25,
                                          N=nsims)
     expect_equal(all(with_agelimit[1, 7:8] == 0), TRUE)
-    expect_equal(all(with_agelimit[2, 8] == 0), TRUE)
+    expect_equal(with_agelimit[2, 8] == 0, TRUE)
     
 })

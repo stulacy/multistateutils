@@ -1,2 +1,2 @@
   - Have cohort simulation return individual ID in first column
-  - Create version of msprep that accepts a long input (id, state, time of entry) and transition matrix and produces the same as msprep. This is useful when states allow recurrent events, as msprep doesn't currently support this
+  - Add examples of msprep2 to Vignette and README

@@ -152,7 +152,7 @@ plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 
 ## Discrete event simulation
 
-The underlying simulation engine can be easily adapted to run cohort-wide simulation, where the output statistics of interest are now global measures rather than dependent on the individual.
+The underlying simulation engine can be easily adapted to run cohort-wide simulation, where the output statistics of interest are global rather individual level measures.
 This is useful for estimating healthcare related values, such as the average time spent receiving treatment for a given disease population.
 
 These discrete event simulations are run with the `cohort_simulation` function as below.
@@ -167,6 +167,66 @@ head(sim)
 By default the simulation runs until every individual reaches a sink state, but a longitudinal specification can be provided, such that the individuals enter the simulation at set incident times and the simulation terminates after a predefined period.
 This functionality is useful when estimating statistics over a finite time-period, such as the expected number of deaths in a 5-year range, but it requires a model of the incidence process (i.e. how often a new patient is diagnosed).
 See the *Examples* vignette for further details.
+
+## `msprep2`
+
+A large part of the work involved with multi-state modelling is basic munging of the data into a format suitable for modelling.
+The `msprep` function from the `mstate` package helps a lot here by converting a wide data frame where each row corresponds to a user with state entry times given in column, into a long format where each row represents a possible state transition.
+
+It does, however, have some slight limitations:
+
+  - Having to form a wide table in the first place with an entry time and status indicator for each state can be a bit time consuming and isn't necessarily a natural way of storing such data
+  - This wide format only allows an individual to enter a state once
+  - For censored state transitions it can be awkward having to replicate the censoring time for each non-visited state
+
+For these reasons I've created a modified version of `msprep`, imaginatively called `msprep2`, that performs the same role but accepts the input data as a tidy table of state entry times rather than a wide table at the individual level.
+
+In this format, each row in the input data frame corresponds to a known state entry time, and so non-visited states are simply omitted.
+The input data frame only needs 3 columns: an individual id, a state id, and the time of entry.
+Covariates and censoring information are provided by separate data frames that link back on the id, providing a cleaner interface and one that works well with data that is stored in relational databases. 
+
+The example below shows the data preparation for 2 individuals:
+
+  1. Enters state 2 at $t=23$ then no more transitions until last follow-up at $t=744$
+  2. Enters state 2 at $t=35$ then enters the absorptive state 3 at $t=360$
+
+```{r}
+entry <- data.frame(id=c(1, 2, 2),
+                    state=c(2, 2, 3),
+                    time=c(23, 35, 360))
+cens <- data.frame(id=1, censor_time=744)
+covars <- data.frame(id=1:2, age=c('>40', '20-40'), dissub=c('CML', 'AML'))
+msprep2(entry, tmat, censors = cens, covars = covars)
+```
+
+By specifying state entry as a long table there is now no limit to how many times a state can be entered by an individual. 
+Let's demonstrate this by extending the illness-death model to allow a patient to recover (i.e. transition from illness back to healthy).
+
+```{r}
+states <- c('healthy', 'illness', 'death')
+tmat2 <- matrix(c(NA, 3, NA, 1, NA, NA, 2, 4, NA), nrow=3, ncol=3, 
+                dimnames=list(states, states))
+tmat2
+```
+
+I'll create a dummy dataset with one individual moving from healthy->illness->death at times 6 and 11, while patient 2 goes from healthy->illness, then is cured and goes back to healthy, before moving back to illness and finally dying. 
+
+```{r}
+multistate_entry <- data.frame(id=c(rep(1, 2),
+                                    rep(2, 4)),
+                               state=c('illness', 'death',
+                                       'illness', 'healthy', 'illness', 'death'),
+                               time=c(6, 11,
+                                      7, 12, 17, 22))
+multistate_entry
+```
+
+As seen below, `msprep2` has no problem converting this into a list of possible transitions.
+Note that we don't need to pass in anything to `censors` because we have complete follow-up on both patients.
+
+```{r}
+msprep2(multistate_entry, tmat2)
+```
 
 ## Upcoming features
 

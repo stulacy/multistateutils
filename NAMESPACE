@@ -2,6 +2,7 @@
 
 export(cohort_simulation)
 export(length_of_stay)
+export(msprep2)
 export(plot_predicted_pathway)
 export(predict_transitions)
 import(data.table)
