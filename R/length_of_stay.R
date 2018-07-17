@@ -116,9 +116,6 @@ length_of_stay <- function(models, newdata, trans_mat, times, start_state=1,
     start_state <- validate_starting_state(start_state, trans_mat)
     validate_oldage(agelimit, agecol, newdata)
 
-    # TODO More guards! Check nature of trans_mat, check that covariates required
-    # by all models are in newdata. Although want state-occupancy specific guards to
-    # be in 'state_occupancy'
     newdata_ext <- newdata[rep(seq(nrow(newdata)), each=N), ]
     start_states <- obtain_individual_starting_states(trans_mat, nrow(newdata), N)
     initial_times <- rep(0, nrow(newdata_ext))

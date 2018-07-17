@@ -70,5 +70,6 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
     
     # Add covariates
     clean <- data.table::as.data.table(newdata)[occupancy, on='id']
+    setcolorder(clean, c('id', setdiff(names(clean), 'id')))
     as.data.frame(clean)
 }

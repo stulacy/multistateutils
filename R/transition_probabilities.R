@@ -163,10 +163,6 @@ predict_transitions <- function(models, newdata, trans_mat, times,
     
     validate_oldage(agelimit, agecol, newdata)
 
-    # TODO More guards! Check nature of trans_mat, check that covariates required
-    # by all models are in newdata. Although want state-occupancy specific guards to
-    # be in 'state_occupancy'
-    
     # Replicate new individuals, starting states, and times N times
     newdata_ext <- newdata[rep(seq(nrow(newdata)), each=N), ]
     start_states <- obtain_individual_starting_states(trans_mat, nrow(newdata), N)
