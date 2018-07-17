@@ -1,10 +1,12 @@
-# 1.1.0
+# multistateutils 1.2.0
 
-Two new features added:
+  - Added `cohort_simulation` function to run discrete event simulation over populations
+  - Added `msprep2` that does the same role as `mstate::msprep` but takes a tidy data of state entry times as input
+  - Added individual age limits for `cohort_simulation`, `predict_transitions` and `length_of_stay`. See vignette for futher details
 
-  - A plot of dynamically predicted state pathways is available in `plot_predicted_pathways`. See `README` for an example!
-  - Length of stay estimates are now provided by `length_of_stay`
+# multistateutils 1.1.0
 
-# 1.0.0
+  - First CRAN release
 
-Initial release. Contains functionality for estimating transition probabilities in `predict_transitions`, with a similar interface to `flexsurv::pmatrix.simfs`, with additional features as described in *README.md*.
+
+

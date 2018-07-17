@@ -15,17 +15,17 @@ long <- msprep(time=c(NA, 'prtime', 'rfstime'),
 
 # Form long version of ebmt3, i.e. each row with new entry
 pr_entry <- ebmt3 %>%
-                filter(prstat == 1) %>%
-                select(id, time=prtime) %>%
-                mutate(state = 'pr')
+                dplyr::filter(prstat == 1) %>%
+                dplyr::select(id, time=prtime) %>%
+                dplyr::mutate(state = 'pr')
 rfs_entry <- ebmt3 %>%
-                filter(rfsstat == 1) %>%
-                select(id, time=rfstime) %>%
-                mutate(state = 'rfs')
+                dplyr::filter(rfsstat == 1) %>%
+                dplyr::select(id, time=rfstime) %>%
+                dplyr::mutate(state = 'rfs')
 entry <- pr_entry %>%
             rbind(rfs_entry) %>%
-            select(id, state, time) %>%
-            arrange(id, time)
+            dplyr::select(id, state, time) %>%
+            dplyr::arrange(id, time)
 
 # Also need separate columns for covars and censor time
 covars <- ebmt3 %>%

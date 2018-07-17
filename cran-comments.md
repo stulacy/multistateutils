@@ -1,16 +1,15 @@
-## Resubmission
+## Version update
 
-I have added examples to the 3 exported functions and a doi reference in Description in the DESCRIPTION file.
+I have added several new features, see NEWS.md for details.
 
 ## Test environments
-* local OpenSUSE Tumbleweed, R 3.5.0
+
+* local OpenSUSE Tumbleweed, R 3.5.1
 * win-builder (devel and release)
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
-
-* This is a new release.
+0 errors | 0 warnings | 0 note
 
 ## Reverse dependencies
 
