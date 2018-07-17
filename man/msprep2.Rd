@@ -2,26 +2,27 @@
 % Please edit documentation in R/msprep2.R
 \name{msprep2}
 \alias{msprep2}
-\title{Converts long state entry data into format suitable for multi-state modelling}
+\title{Converts long state entry data into a format suitable for multi-state modelling}
 \usage{
 msprep2(entry, tmat, censors = NULL, start_times = NULL,
   start_states = NULL, covars = NULL, idcol = "id")
 }
 \arguments{
-\item{entry}{Long data frame of format id | state | time.
-State can either be character, with the names the same as in \code{tmat}, or
-integer where they refer to the rownumber of that state in \code{tmat}.}
+\item{entry}{Long data frame of format \code{id} | \code{state} | \code{time}.
+State can either be character, with the same state names used in \code{tmat}, or
+integer where they refer to the rownumber of that state in \code{tmat}.
+Note that the \code{state} and \code{time} fields must be labelled this way.}
 
-\item{tmat}{transition matrix in the standard format required by \code{msprep}.}
+\item{tmat}{Transition matrix in the standard format required by \code{msprep}.}
 
-\item{censors}{A long data frame with 2 columns, id and censor_time. Gives the last
-date of follow-up for individuals that haven't entered a sink state.}
+\item{censors}{A long data frame with 2 columns, \code{id} and \code{censor_time}. 
+Gives the last follow-up time for individuals that haven't entered a sink state.}
 
-\item{start_times}{A long data frame with 2 columns, id and start_time. Gives
-the time at which the patient entered the simulation. Defaults to 0.}
+\item{start_times}{A long data frame with 2 columns, \code{id} and \code{start_time}. 
+Gives the time at which the patient entered the simulation. Defaults to 0.}
 
-\item{start_states}{A long data frame with 2 columns, id and start_state. Gives
-the state the patient entered the simulation in. Defaults to 1.}
+\item{start_states}{A long data frame with 2 columns, \code{id} and \code{start_state}. 
+Gives the state the patient entered the simulation in. Defaults to 1.}
 
 \item{covars}{Data frame where each row corresponds to an individual and details their
 covariate values. Must contain the id column specified in \code{idcol} alongside
@@ -32,12 +33,15 @@ any covariate fields of interest.}
 and \code{covars} if supplied.}
 }
 \description{
-This function performs the same role as \code{msprep} from \code{mstate}, except
-that it accepts data in a long (each row corresponds to a state entry) rather
-than the wide format (each row corresponding to an individual with state entry
-indicated in columns) used by \code{msprep}.
+This function performs the same role as \code{msprep} from the \code{mstate} package, except
+that it accepts long data (each row corresponds to a state entry) rather
+than the wide format used by \code{msprep} (each row represents an individual with state entry
+indicated in columns).
 }
 \details{
-The wide format already requires a bit of data munging, whereas the long format
-accepted by \code{msprep2} might be a more natural fit for some data sets.
+The long data format required by \code{msprep2} is a more natural way of organising
+state entry data than the wide format required by \code{msprep}.
+An additional benefit of having the state entries organised in this fashion is that
+it allows for the situation where an individual enters the same state multiple times,
+which is not supported by \code{msprep}.
 }

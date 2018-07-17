@@ -1,39 +1,41 @@
-#' Converts long state entry data into format suitable for multi-state modelling
+#' Converts long state entry data into a format suitable for multi-state modelling
 #' 
-#' This function performs the same role as \code{msprep} from \code{mstate}, except
-#' that it accepts data in a long (each row corresponds to a state entry) rather
-#' than the wide format (each row corresponding to an individual with state entry
-#' indicated in columns) used by \code{msprep}.
+#' This function performs the same role as \code{msprep} from the \code{mstate} package, except
+#' that it accepts long data (each row corresponds to a state entry) rather
+#' than the wide format used by \code{msprep} (each row represents an individual with state entry
+#' indicated in columns).
 #' 
-#' The wide format already requires a bit of data munging, whereas the long format
-#' accepted by \code{msprep2} might be a more natural fit for some data sets.
+#' The long data format required by \code{msprep2} is a more natural way of organising
+#' state entry data than the wide format required by \code{msprep}.
+#' An additional benefit of having the state entries organised in this fashion is that
+#' it allows for the situation where an individual enters the same state multiple times,
+#' which is not supported by \code{msprep}.
 #' 
-#' @param entry Long data frame of format id | state | time.
-#'   State can either be character, with the names the same as in \code{tmat}, or
+#' @param entry Long data frame of format \code{id} | \code{state} | \code{time}.
+#'   State can either be character, with the same state names used in \code{tmat}, or
 #'   integer where they refer to the rownumber of that state in \code{tmat}.
-#' @param tmat transition matrix in the standard format required by \code{msprep}.
-#' @param censors A long data frame with 2 columns, id and censor_time. Gives the last
-#'   date of follow-up for individuals that haven't entered a sink state.
-#' @param start_times A long data frame with 2 columns, id and start_time. Gives
-#'   the time at which the patient entered the simulation. Defaults to 0.
-#' @param start_states A long data frame with 2 columns, id and start_state. Gives
-#'   the state the patient entered the simulation in. Defaults to 1.
+#'   Note that the \code{state} and \code{time} fields must be labelled this way.
+#' @param tmat Transition matrix in the standard format required by \code{msprep}.
+#' @param censors A long data frame with 2 columns, \code{id} and \code{censor_time}. 
+#'   Gives the last follow-up time for individuals that haven't entered a sink state.
+#' @param start_times A long data frame with 2 columns, \code{id} and \code{start_time}. 
+#'   Gives the time at which the patient entered the simulation. Defaults to 0.
+#' @param start_states A long data frame with 2 columns, \code{id} and \code{start_state}. 
+#'   Gives the state the patient entered the simulation in. Defaults to 1.
 #' @param covars Data frame where each row corresponds to an individual and details their
 #'   covariate values. Must contain the id column specified in \code{idcol} alongside
 #'   any covariate fields of interest.
 #' @param idcol The column that indexes these patients, must be present in 
 #'   \code{entry} and \code{censors}, \code{start_times}, \code{start_states}, 
 #'   and \code{covars} if supplied.
+#' @export
 #' @importFrom magrittr '%>%'
 msprep2 <- function(entry, tmat, censors=NULL, 
                     start_times=NULL, start_states=NULL, covars=NULL,
                     idcol='id') {
-    # TODO Do I need start_times & start_states or should I make it compulsory to 
-    # include these in entry?
     
     DEFAULT_START_TIME <- 0
     DEFAULT_START_STATE <- 1
-    
     
     # R CMD CHECK
     id <- NULL
@@ -58,7 +60,7 @@ msprep2 <- function(entry, tmat, censors=NULL,
         stop("Error: column 'time' not found in entry.")
     if (!'state' %in% colnames(entry))
         stop("Error: column 'state' not found in entry.")
-    # TODO How to make this function work for repeated state entry?
+    
     entry <- entry %>% 
                 dplyr::rename(id = idcol, Tstop=time)
     # Build up list of unique_ids
