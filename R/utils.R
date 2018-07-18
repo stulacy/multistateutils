@@ -269,3 +269,8 @@ validate_oldage <- function(agelimit, agecol, newdata) {
     
     TRUE
 }
+
+# Clean up after package unloaded
+.onUnload <- function (libpath) {
+    library.dynam.unload("multistateutils", libpath)
+}

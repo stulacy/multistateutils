@@ -228,6 +228,9 @@ msprep2 <- function(entry, tmat, censors=NULL,
                     dplyr::left_join(covars, by='id')
     }
     
+    to_int <- c('id', 'from', 'to', 'trans', 'status')  
+    entry4[to_int] <- lapply(entry4[to_int], as.integer)
+    
     entry4 %>%
         dplyr::arrange(id, Tstart, trans)
 } 
