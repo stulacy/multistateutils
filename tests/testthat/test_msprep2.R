@@ -2,40 +2,66 @@ library(testthat)
 
 context("msprep2")
 
-library(mstate)
-library(dplyr)
+long_fn <- tempfile()
+entry_fn <- tempfile()
+covars_fn <- tempfile()
+censors_fn <- tempfile()
 
-data(ebmt3)
-tmat <- trans.illdeath(c('transplant', 'pr', 'rfs'))
-long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
-               status=c(NA, 'prstat', 'rfsstat'), 
-               data=ebmt3, 
-               trans=tmat, 
-               keep=c('age', 'dissub'))
+setup({
+    library(mstate)
+    library(flexsurv)
 
-# Form long version of ebmt3, i.e. each row with new entry
-pr_entry <- ebmt3 %>%
-                dplyr::filter(prstat == 1) %>%
-                dplyr::select(id, time=prtime) %>%
-                dplyr::mutate(state = 'pr')
-rfs_entry <- ebmt3 %>%
-                dplyr::filter(rfsstat == 1) %>%
-                dplyr::select(id, time=rfstime) %>%
-                dplyr::mutate(state = 'rfs')
-entry <- pr_entry %>%
-            rbind(rfs_entry) %>%
-            dplyr::select(id, state, time) %>%
-            dplyr::arrange(id, time)
+    data(ebmt3)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    long <- mstate::msprep(time=c(NA, 'prtime', 'rfstime'), 
+                       status=c(NA, 'prstat', 'rfsstat'), 
+                       data=ebmt3, 
+                       trans=tmat, 
+                       keep=c('age', 'dissub'))
+    
+    # Form long version of ebmt3, i.e. each row with new entry
+    pr_entry <- ebmt3[ebmt3$prstat == 1, c('id', 'prtime')]
+    pr_entry$time <- pr_entry$prtime
+    pr_entry$state <- 'pr'
+    pr_entry <- pr_entry[, c('id', 'time', 'state')]
+    
+    rfs_entry <- ebmt3[ebmt3$rfsstat == 1, c('id', 'rfstime')]
+    rfs_entry$time <- rfs_entry$rfstime
+    rfs_entry$state <- 'rfs'
+    rfs_entry <- rfs_entry[, c('id', 'time', 'state')]
+    
+    entry <- rbind(pr_entry, rfs_entry)
+    entry <- entry[, c('id', 'state', 'time')]
+    entry <- entry[order(entry$id, entry$time), ]
+    
+    # Also need separate columns for covars and censor time
+    covars <- ebmt3[, c('id', 'age', 'dissub')]
+    censor_time <- ebmt3
+    censor_time$censor_time <- ifelse(censor_time$prstat == 0, censor_time$prtime,
+                                      ifelse(censor_time$rfsstat == 0, censor_time$rfstime, NA))
+    censor_time <- censor_time[, c('id', 'censor_time')]
 
-# Also need separate columns for covars and censor time
-covars <- ebmt3 %>%
-            select(id, age, dissub)
-censor_time <- ebmt3 %>%
-                mutate(censor_time = ifelse(prstat == 0, prtime,
-                                            ifelse(rfsstat == 0, rfstime, NA))) %>%
-                select(id, censor_time)
+    saveRDS(entry, entry_fn)
+    saveRDS(covars, covars_fn)
+    saveRDS(censor_time, censors_fn)
+    saveRDS(long, long_fn)
+
+})
+
+teardown({
+    unlink(entry_fn)
+    unlink(covars_fn)
+    unlink(censors_fn)
+    unlink(long_fn)
+})
 
 test_that("msprep2 produces same output on ebmt3 as msprep", {
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
     full <- msprep2(entry, tmat, censors = censor_time, covars=covars)
     
     expect_equal(dim(full), dim(long))
@@ -47,9 +73,24 @@ test_that("msprep2 produces same output on ebmt3 as msprep", {
 })
 
 test_that("msprep2 idcolumn works", {
-    entry2 <- entry %>% rename(patid = id)
-    censor2 <- censor_time %>% rename(patid = id)
-    covars2 <- covars %>% rename(patid = id)
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
+    entry2 <- entry 
+    censor2 <- censor_time 
+    covars2 <- covars 
+    
+    entry2$patid <- entry$id
+    censor2$patid <- censor2$id
+    covars2$patid <- covars2$id
+    
+    entry2 <- entry2[, setdiff(colnames(entry2), 'id')]
+    censor2 <- censor2[, setdiff(colnames(censor2), 'id')]
+    covars2 <- covars2[, setdiff(colnames(covars2), 'id')]
+    
     full <- msprep2(entry2, tmat, censors = censor2, covars=covars2, idcol='patid')
     
     expect_equal(dim(full), dim(long))
@@ -61,6 +102,12 @@ test_that("msprep2 idcolumn works", {
 })
 
 test_that("msprep2 entry guards work", {
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
     
     # Test with duplicate times
     entry2 <- entry
@@ -68,17 +115,22 @@ test_that("msprep2 entry guards work", {
     expect_error(msprep2(entry2, tmat, censors = censor_time, covars=covars),
                  "Error: each id in entry must have unique state entry times.")
     
-    entry3 <- entry %>%
-                rename(t = time)
+    entry3 <- entry
+    entry3$t <- entry3$time
+    entry3 <- entry3[, setdiff(colnames(entry3), 'time')]
+    
     expect_error(msprep2(entry3, tmat, censors = censor_time, covars=covars),
                  "Error: column 'time' not found in entry.")
-    entry4 <- entry %>%
-                rename(stat = state)
+    
+    entry4 <- entry
+    entry4$stat <- entry4$state
+    entry4 <- entry4[, setdiff(colnames(entry4), 'state')]
     expect_error(msprep2(entry4, tmat, censors = censor_time, covars=covars),
                  "Error: column 'state' not found in entry.")
     
-    entry5 <- entry %>%
-                rename(patid = id)
+    entry5 <- entry
+    entry5$patid <- entry5$id
+    entry5 <- entry5[, setdiff(colnames(entry5), 'id')]
     expect_error(msprep2(entry5, tmat, censors = censor_time, covars=covars),
                  "Error: id field 'id' not found in entry.")
     expect_error(msprep2(entry, tmat, censors = censor_time, covars=covars, idcol='patid'),
@@ -86,6 +138,12 @@ test_that("msprep2 entry guards work", {
 })
 
 test_that("msprep2 covars guards work", {
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
     # Test without idcol
     expect_error(msprep2(entry, tmat, censors = censor_time,
                          covars=data.frame(age=50:59)),
@@ -99,21 +157,29 @@ test_that("msprep2 covars guards work", {
                     covars=data.frame(id=1:10, age=50:59))
     expect_equal(ncol(full), 9)
     expect_equal(nrow(full) >= nrow(ebmt3), TRUE)
-    output_age <- full %>% filter(id %in% seq(10)) %>% pull(age)
-    output_noage <- full %>% filter(!id %in% seq(10)) %>% pull(age)
+    
+    output_age <- full$age[full$id %in% seq(10)]
+    output_noage <- full$age[!full$id %in% seq(10)]
+    
     expect_equal(all(!is.na(output_age)), TRUE)
     expect_equal(all(is.na(output_noage)), TRUE)
 })
     
 test_that("msprep2 start_time guards work", {
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
     
     # Should work with missing start times
     start_missing <- data.frame(id=1:10, start_time=1)
     full <- msprep2(entry, tmat, censors = censor_time, covars=covars, start_times = start_missing)
     expect_equal(ncol(full), 10)
     expect_equal(nrow(full) >= nrow(ebmt3), TRUE)
-    start_times <- full %>% filter(id %in% seq(10), from == 1) %>% pull(Tstart)
-    default_start_times <- full %>% filter(!id %in% seq(10), from == 1) %>% pull(Tstart)
+    start_times <- full$Tstart[full$id %in% seq(10) & full$from == 1]
+    default_start_times <- full$Tstart[!full$id %in% seq(10) & full$from == 1]
     expect_equal(all(start_times == 1), TRUE)
     expect_equal(all(default_start_times == 0), TRUE)
     
@@ -130,6 +196,12 @@ test_that("msprep2 start_time guards work", {
 })
     
 test_that("msprep2 start_states guards work", {
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
     # Shouldn't work when don't have id column or start_time column
     expect_error(msprep2(entry, tmat, censors = censor_time, covars=covars,
                          start_states = data.frame(patid=1:10, start_state=1)),
@@ -144,8 +216,11 @@ test_that("msprep2 start_states guards work", {
     full <- msprep2(entry, tmat, censors = censor_time, covars=covars, start_states = start_missing)
     expect_equal(ncol(full), 10)
     expect_equal(nrow(full) >= nrow(ebmt3), TRUE)
-    start_states <- full %>% filter(id %in% seq(10), Tstart == 0) %>% pull(from)
-    default_start_states <- full %>% filter(!id %in% seq(10), Tstart == 0) %>% pull(from)
+    
+    
+    start_states <- full$from[full$id %in% seq(10) & full$Tstart == 0]
+    default_start_states <- full$from[!full$id %in% seq(10) & full$Tstart == 0]
+    
     expect_equal(all(start_states == 2), TRUE)
     expect_equal(all(default_start_states == 1), TRUE)
     
@@ -167,6 +242,12 @@ test_that("msprep2 start_states guards work", {
 })
                 
 test_that("msprep2 works with repeated state entries", {
+    entry <- readRDS(entry_fn)
+    censor_time <- readRDS(censors_fn)
+    covars <- readRDS(covars_fn)
+    long <- readRDS(long_fn)
+    tmat <- mstate::trans.illdeath(c('transplant', 'pr', 'rfs'))
+    
     # Can go A->B, A->C, B->A, B->C, thereby can have multiple entries to B
     # id 1 goes A->B, B->A, A->B, B->C
     # id 2 goes A->B, B->C

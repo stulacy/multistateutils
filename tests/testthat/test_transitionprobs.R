@@ -2,22 +2,35 @@ library(testthat)
 
 context("transition probabilities")
 
-library(mstate)
-data(ebmt3)
-tmat <- trans.illdeath()
-long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
-               status=c(NA, 'prstat', 'rfsstat'), 
-               data=ebmt3, 
-               trans=tmat, 
-               keep=c('age', 'dissub'))
-library(flexsurv)
-models <- lapply(1:3, function(i) {
-    flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+models_fn <- tempfile()
+
+setup({
+    library(mstate)
+    library(flexsurv)
+
+    data(ebmt3)
+    tmat <- trans.illdeath()
+    long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+                   status=c(NA, 'prstat', 'rfsstat'), 
+                   data=ebmt3, 
+                   trans=tmat, 
+                   keep=c('age', 'dissub'))
+    models <- lapply(1:3, function(i) {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+    })
+    
+    saveRDS(models, models_fn)
 })
-newdata <- data.frame(age="20-40", dissub="AML")
-newdata_mat <- matrix(c(1, 0, 0, 0), nrow=1, ncol=4)
+
+teardown({
+    unlink(models_fn)
+})
 
 test_that("predict_transitions is within 1% of pmatrix.simfs", {
+    tmat <- trans.illdeath()
+    newdata <- data.frame(age="20-40", dissub="AML")
+    models <- readRDS(models_fn)
+    
     rdes <- predict_transitions(models, newdata, tmat, times = 100)
     pmat <- pmatrix.simfs(models, tmat, newdata=newdata, t=100)
     
@@ -36,6 +49,10 @@ test_that("predict_transitions is within 1% of pmatrix.simfs", {
 })
 
 test_that("predict_transitions guards work", {
+    tmat <- trans.illdeath()
+    newdata <- data.frame(age="20-40", dissub="AML")
+    models <- readRDS(models_fn)
+    
     # Not flexsurvreg objects
     expect_error(predict_transitions(list(5, 20), newdata, tmat, times = 365))
     # covariate names wrong
@@ -53,6 +70,10 @@ test_that("predict_transitions guards work", {
 })
 
 test_that("predict_transitions age limit works", {
+    tmat <- trans.illdeath()
+    newdata <- data.frame(age="20-40", dissub="AML")
+    models <- readRDS(models_fn)
+    
     nsims <- 1000
     rdes <- predict_transitions(models, newdata, tmat, times = 36525, N=nsims)
     # Test that without age limits the probabilities of non-death are non-zero
