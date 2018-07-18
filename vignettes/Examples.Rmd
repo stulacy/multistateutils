@@ -549,7 +549,7 @@ I'll generate two individuals:
 multistate_entry <- data.frame(id=c(rep(1, 2),
                                     rep(2, 4)),
                                state=c('illness', 'death',
-                                       'illnes', 'healthy', 'illnes', 'death'),
+                                       'illness', 'healthy', 'illness', 'death'),
                                time=c(6, 11,
                                       7, 12, 17, 22))
 multistate_entry
