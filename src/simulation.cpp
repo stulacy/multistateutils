@@ -33,8 +33,8 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
     }
 
     // Populate event list with initial entries into the system
-    int id, i;
-    //std::vector<double>::iterator it;
+    int id;
+    std::size_t i;
     double initial_time;
 
     if (times.size() != start_states.size()) {
