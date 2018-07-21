@@ -25,7 +25,7 @@ Transition::Transition(std::string const& name, int to, List in_params, std::vec
         params.push_back(target);
     }
 
-};
+}
 
 double Transition::draw_event_time(Rcpp::NumericVector attributes, double time_since_start) const {
     double drawn_time;
