@@ -1,8 +1,8 @@
 Package: multistateutils
 Type: Package
 Title: Utility Functions for Parametric Multi-State Models
-Version: 1.1.0
-Date: 2018-06-05
+Version: 1.2.0
+Date: 2018-07-18
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
 Description: Provides functions for working with multi-state modelling, 
@@ -10,7 +10,7 @@ Description: Provides functions for working with multi-state modelling,
     It is designed as an extension to multi-state modelling capabilities provided with the 'flexsurv' 
     package (see Jackson (2016) <doi:10.18637/jss.v070.i08>).
 License: GPL (>= 2)
-Imports: Rcpp (>= 0.12.10), data.table, dplyr, magrittr, networkD3, survival, tidyr
+Imports: data.table, dplyr, magrittr, networkD3, tidyr
 Suggests: flexsurv, mstate, microbenchmark, rmarkdown,
     knitr,
     testthat,

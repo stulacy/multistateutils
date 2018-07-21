@@ -2,22 +2,37 @@ library(testthat)
 
 context("length of stay")
 
-library(mstate)
-data(ebmt3)
-tmat <- trans.illdeath()
-long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
-               status=c(NA, 'prstat', 'rfsstat'), 
-               data=ebmt3, 
-               trans=tmat, 
-               keep=c('age', 'dissub'))
-library(flexsurv)
-models <- lapply(1:3, function(i) {
-    flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+models_fn <- tempfile()
+
+setup({
+    library(mstate)
+    library(flexsurv)
+    
+    data(ebmt3)
+    tmat <- trans.illdeath()
+    long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+                   status=c(NA, 'prstat', 'rfsstat'), 
+                   data=ebmt3, 
+                   trans=tmat, 
+                   keep=c('age', 'dissub'))
+    models <- lapply(1:3, function(i) {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+    })
+    newdata <- data.frame(age="20-40", dissub="AML")
+    
+    saveRDS(models, models_fn)
 })
-newdata <- data.frame(age="20-40", dissub="AML")
-newdata_mat <- matrix(c(1, 0, 0, 0), nrow=1, ncol=4)
+
+teardown({
+    unlink(models_fn)
+    
+})
 
 test_that("length_of_stay is consistent with totlos.simfs", {
+    models <- readRDS(models_fn)
+    newdata <- data.frame(age="20-40", dissub="AML")
+    tmat <- trans.illdeath()
+    
     los <- length_of_stay(models, newdata, tmat, 365, start_state=1)
     simfs <- totlos.simfs(models, tmat, t=365, start=1, newdata=newdata)
     diff <- unname(as.matrix(los[1, 5:7] / simfs))
@@ -30,6 +45,9 @@ test_that("length_of_stay is consistent with totlos.simfs", {
 })
 
 test_that("length_of_stay guards work", {
+    models <- readRDS(models_fn)
+    newdata <- data.frame(age="20-40", dissub="AML")
+    tmat <- trans.illdeath()
     
     # Models not specified
     expect_error(length_of_stay(list(3, 2), newdata, tmat, 36525, start_state=1))
@@ -59,6 +77,10 @@ test_that("length_of_stay guards work", {
     
 
 test_that("length_of_stay age limit works", {
+    models <- readRDS(models_fn)
+    newdata <- data.frame(age="20-40", dissub="AML")
+    tmat <- trans.illdeath()
+    
     nsims <- 1000
     los1 <- length_of_stay(models, newdata, tmat, 36525, start_state=1,
                            N=nsims)

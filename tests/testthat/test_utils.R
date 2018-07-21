@@ -2,20 +2,30 @@ library(testthat)
 
 context("utils")
 
-library(mstate)
-data(ebmt3)
-tmat <- trans.illdeath()
-long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
-               status=c(NA, 'prstat', 'rfsstat'), 
-               data=ebmt3, 
-               trans=tmat, 
-               keep=c('age', 'dissub'))
-library(flexsurv)
-models <- lapply(1:3, function(i) {
-    flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+models_fn <- tempfile()
+
+setup({
+    library(mstate)
+    library(flexsurv)
+    
+    data(ebmt3)
+    tmat <- trans.illdeath()
+    long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+                   status=c(NA, 'prstat', 'rfsstat'), 
+                   data=ebmt3, 
+                   trans=tmat, 
+                   keep=c('age', 'dissub'))
+    models <- lapply(1:3, function(i) {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+    })
+    newdata <- data.frame(age="20-40", dissub="AML")
+    
+    saveRDS(models, models_fn)
 })
-newdata <- data.frame(age="20-40", dissub="AML")
-newdata_mat <- matrix(c(1, 0, 0, 0), nrow=1, ncol=4)
+
+teardown({
+    unlink(models_fn)
+})
 
 test_that("validate_oldage correctly identifies errors", {
     newd <- data.frame(age=c(50, 70),
@@ -31,6 +41,8 @@ test_that("validate_oldage correctly identifies errors", {
 })
 
 test_that("get_covariates returns correct covariate names", {
+    models <- readRDS(models_fn)
+    
     ret <- get_covariates(models)
     expect_equal(typeof(ret), 'character')
     expect_equal(ret, c('age', 'dissub'))
@@ -39,6 +51,8 @@ test_that("get_covariates returns correct covariate names", {
 })
 
 test_that("get_sink_states correctly returns sink states", {
+    tmat <- trans.illdeath()
+    
     expect_equal(get_sink_states(tmat), "death")
     expect_error(get_sink_states(NULL), "Error: must provide a square transition matrix.")
     
@@ -79,6 +93,7 @@ test_that("get_state_entries returns correct values", {
 })
 
 test_that("get_visited_states returns correct values", {
+    tmat <- trans.illdeath()
     expect_equal(get_visited_states(1, tmat), 1:3)
     expect_equal(get_visited_states(2, tmat), 2:3)
     expect_equal(get_visited_states(3, tmat), 3:3)
@@ -90,6 +105,7 @@ test_that("get_visited_states returns correct values", {
 })
 
 test_that("validate_starting_state correctly validates", {
+    tmat <- trans.illdeath()
     expect_equal(validate_starting_state(1, tmat), 1)
     expect_equal(validate_starting_state(2, tmat), 2)
     expect_equal(validate_starting_state(3, tmat), 3)
@@ -105,6 +121,7 @@ test_that("validate_starting_state correctly validates", {
 })
 
 test_that("obtain_individual_starting_states returns sensible values", {
+    tmat <- trans.illdeath()
     
     expect_error(obtain_individual_starting_states(tmat, -1, 2), 
                  "Error: ninds and nreps must be positive integers.")
@@ -158,6 +175,8 @@ test_that("obtain_individual_starting_states returns sensible values", {
 })
 
 test_that("clean_newdata returns correct columns", {
+    models <- readRDS(models_fn)
+    
     newdata_wrongcols <- data.frame(disease="AML", agegroup="20-40")
     expect_error(clean_newdata(newdata_wrongcols, models, FALSE, 'age'), 
                  "Error: missing columns age, dissub in newdata.")
@@ -166,11 +185,14 @@ test_that("clean_newdata returns correct columns", {
     expect_error(clean_newdata(newdata_wrongage, models, 3125, 'age_cont'), 
                  "Error: missing columns age_cont in newdata.")
     
+    newdata <- data.frame(age="20-40", dissub="AML")
     expect_equal(clean_newdata(newdata, models, FALSE, "foo"), cbind(newdata, list(id=0)))
     
 })
 
 test_that("form_model_matrix returns a matrix", {
+    models <- readRDS(models_fn)
+    
     newdata <- data.frame(age="20-40", dissub="AML")
     out <- form_model_matrix(newdata, models)
     expect_equal(class(out), "matrix")
@@ -178,8 +200,9 @@ test_that("form_model_matrix returns a matrix", {
     expect_equal(all(out == c(1, 1, 0, 0, 0)), TRUE)
 })
 
-#obtain_model_coef <- function(mod, attrs, M=1) 
 test_that("obtain_model_coef returns correct coefficients", {
+    models <- readRDS(models_fn)
+    
     newdata <- data.frame(age="20-40", dissub="AML")
     mod <- models[[1]]
     mat <- form_model_matrix(newdata, models)
@@ -200,6 +223,8 @@ test_that("obtain_model_coef returns correct coefficients", {
 })
 
 test_that("coefs_as_list returns correct list", {
+    models <- readRDS(models_fn)
+    
     newdata <- data.frame(age="20-40", dissub="AML")
     mod <- models[[1]]
     mat <- form_model_matrix(newdata, models)

@@ -44,6 +44,10 @@ knitr::opts_chunk$set(
 set.seed(17)  # For reproducibility's sake
 ```
 
+```{r incmsu, eval=T}
+library(multistateutils)
+```
+
 ## Introduction
 
 This vignette aims to provide a more thorough introduction to the features in `multistateutils` than the brief overview in the README. It uses the same example dataset and models, but has more examples and accompanying discussion.
@@ -109,7 +113,6 @@ The function that estimates transition probabilities is called `predict_transiti
 The code example below shows how to calculate transition probabilities for $t=365$ (1 year) with $s=0$; the transition probabilities for every state at 1 year after transplant given being in every state at transplant time. As with `pmatrix.simfs`, although all the probabilities for every pairwise combination of states are calculated, they are sometimes redundant. For example, $P_{h,j}(0, 365)$ where $h=j=\text{rfs}$ is hardly a useful prediction.
 
 ```{r example1}
-library(multistateutils)
 predict_transitions(models, newdata, tmat, times=365)
 ```
 
@@ -549,7 +552,7 @@ I'll generate two individuals:
 multistate_entry <- data.frame(id=c(rep(1, 2),
                                     rep(2, 4)),
                                state=c('illness', 'death',
-                                       'illnes', 'healthy', 'illnes', 'death'),
+                                       'illness', 'healthy', 'illness', 'death'),
                                time=c(6, 11,
                                       7, 12, 17, 22))
 multistate_entry

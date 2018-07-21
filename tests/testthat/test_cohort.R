@@ -1,21 +1,36 @@
 library(testthat)
 
 context("cohort")
+models_fn <- tempfile()
 
-library(mstate)
-data(ebmt3)
-tmat <- trans.illdeath()
-long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
-               status=c(NA, 'prstat', 'rfsstat'), 
-               data=ebmt3, 
-               trans=tmat, 
-               keep=c('age', 'dissub'))
-library(flexsurv)
-models <- lapply(1:3, function(i) {
-    flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+setup({
+    library(mstate)
+    library(flexsurv)
+    
+    data(ebmt3)
+    tmat <- trans.illdeath()
+    long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+                   status=c(NA, 'prstat', 'rfsstat'), 
+                   data=ebmt3, 
+                   trans=tmat, 
+                   keep=c('age', 'dissub'))
+    
+    models <- lapply(1:3, function(i) {
+        flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+    })
+    
+    saveRDS(models, models_fn)
 })
 
+teardown({
+    unlink(models_fn)
+})
+
+
 test_that("cohort_simulation returns expected values", {
+    tmat <- trans.illdeath()
+    models <- readRDS(models_fn)
+    
     sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
     expect_equal(ncol(sim), 5)
     expect_equal(nrow(sim) > nrow(ebmt3), TRUE)
@@ -27,6 +42,9 @@ test_that("cohort_simulation returns expected values", {
 })
 
 test_that("cohort_simulation guards work", {
+    tmat <- trans.illdeath()
+    models <- readRDS(models_fn)
+    
     expect_error(cohort_simulation(list(a=5, b=2), ebmt3, tmat))
     expect_error(cohort_simulation(models, ebmt3[, c('age')], tmat))
     expect_error(cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat,
@@ -37,6 +55,9 @@ test_that("cohort_simulation guards work", {
 })
 
 test_that("cohort_simulation age limit works", {
+    tmat <- trans.illdeath()
+    models <- readRDS(models_fn)
+    
     sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
     expect_equal(max(sim$time) > 36525, TRUE)
     
