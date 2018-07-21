@@ -3,12 +3,12 @@
 # Calculates transition probabilities for specified parameters from state
 # occupancies.
 # occupancy State occupancy data.table as returned by \code{state_occupancy}.
-# state_names Character vector containing the names of the states.
 # end_times Times at which to estimate transition probabilities.
+# ci Boolean whether to calculate confidence intervals or not.
 #
 # return A data frame in long format with transition probabilities for each individual,
 # for each starting time, and for each ending time.
-calculate_transition_probabilities <- function(occupancy, start_times, end_times, state_names, ci) {
+calculate_transition_probabilities <- function(occupancy, start_times, end_times, ci) {
 
     # Required by CRAN checks
     id <- NULL
@@ -21,6 +21,12 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
     start_state <- NULL
     individual <- NULL
 
+    # Big assumption that every state is visited...
+    # But couldn't find a cleaner way of adding in old age without meaning
+    # that every new function has to manually update the transition matrix in their functions.
+    # Whereas this current method means that they dont have to worry about it as its done only in
+    # run_simulation.
+    state_names <- levels(occupancy$state)
 
     nstates <- length(state_names)
     keys <- c('individual', 'id')
@@ -34,10 +40,8 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
         full_keys <- c('simulation', full_keys)
         LHS <- c('simulation', LHS)
     }
-
     count_form <- stats::as.formula(paste(paste(LHS, collapse='+'),
                                           'end_state', sep='~'))
-
 
     # Find state was in at start time
     # Obtain state that a person is in at starting times
@@ -53,7 +57,7 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 
     # Calculate transition probabilities
     counts <- data.table::dcast(combined, count_form, value.var='end_time', length)
-    end_state_names <- colnames(counts)[(ncol(counts)-nstates+1):ncol(counts)]
+    end_state_names <- colnames(counts)[seq(length(full_keys)+1, ncol(counts))]
 
     # Calculate the number in the starting state at specified starting time
     counts[, num_start:=sum(.SD), .SDcols=end_state_names, by=full_keys]
@@ -62,14 +66,19 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
     proportions <- counts[, lapply(.SD, function(x) x / num_start),
                           .SDcols=end_state_names,
                           by=full_keys]
-
-    # Add state names for starting state column and as column names for ending states
-    start_ind <- ncol(proportions) - nstates + 1
-    data.table::setnames(proportions, c(names(proportions)[1:(start_ind-1)],
-                                        state_names))
-    proportions$start_state <- factor(proportions$start_state,
-                                      levels=seq_along(state_names)-1,
-                                      labels=state_names)
+    
+    # Set startstate column to be ordered in state order, and likewise destination 
+    # state order
+    start_states_used <- intersect(state_names, unique(proportions$start_state))
+    end_states_unused <- setdiff(state_names, end_state_names)
+    if (length(end_states_unused) > 0) {
+        proportions[, (end_states_unused) := 0.0]
+    }
+    proportions[, start_state := factor(start_state, levels=start_states_used)]
+    data.table::setcolorder(proportions, c(colnames(proportions)[seq(ncol(proportions)-nstates)],
+                                           state_names))
+    
+    setorder(proportions, individual, start_time, end_time, start_state)
     proportions
 }
 
@@ -92,6 +101,15 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
 #' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
 #' @param ci_margin Confidence interval range to use if \code{ci} is set to \code{TRUE}.
+#' @param agelimit Whether to automatically assign people to an 'early death' state. 
+#'   This is useful as otherwise individuals can be assigned unrealistic time-to-events due to the
+#'   nature of sampling times from a random number distribution.
+#'   If this value is \code{FALSE} then no limit is applied, otherwise provide the time-limit
+#'   to be used. This limit must be in the same time-scale as the time-to-event models.
+#' @param agescale Any multiplication to be applied to the age covariate to put it onto the same
+#'   time-scale as the simulation. This is often useful as time-to-event may be measured on a day-based
+#'   time-scale while age is typically measured in years.
+#' @param agecol The name of the column in \code{newdata} that holds an individual's age.
 #' @return A data frame with estimates of transition probabilities.
 #' 
 #' @examples 
@@ -128,7 +146,11 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #' @export
 predict_transitions <- function(models, newdata, trans_mat, times,
                                 start_times=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
-                                ci_margin=0.95) {
+                                ci_margin=0.95, 
+                                agelimit=FALSE, agecol='age', agescale=365.25) {
+    
+    # CMD CHECK
+    id <- NULL
 
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
@@ -138,17 +160,25 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
     if (any(sapply(start_times, function(s) s > times)))
         stop("Error: 'start_times' must be earlier than any value in 'times'.")
+    
+    validate_oldage(agelimit, agecol, newdata)
 
-    # TODO More guards! Check nature of trans_mat, check that covariates required
-    # by all models are in newdata. Although want state-occupancy specific guards to
-    # be in 'state_occupancy'
-
+    # Replicate new individuals, starting states, and times N times
+    newdata_ext <- newdata[rep(seq(nrow(newdata)), each=N), ]
+    start_states <- obtain_individual_starting_states(trans_mat, nrow(newdata), N)
+    initial_times <- rep(0, nrow(newdata_ext))
+    
     # Calculate state occupancies
-    occupancy <- state_occupancy(models, trans_mat, newdata, N, tcovs, ci, M)
-
+    occupancy <- state_occupancy(models, trans_mat, newdata_ext, tcovs, initial_times, 
+                                 start_states, ci, M, agelimit, agecol, agescale)
+    
+    # Add in individual IDs
+    individual_key <- data.table::data.table(id=seq(nrow(newdata_ext))-1,
+                                             individual=rep(seq(nrow(newdata)), each=N)-1)
+    occupancy <- individual_key[occupancy, on='id']
+    
     # Estimate transition probabilities, this will add 'simulation' as a key if used
-    probs <- calculate_transition_probabilities(occupancy, start_times, times, 
-                                                colnames(trans_mat), ci)
+    probs <- calculate_transition_probabilities(occupancy, start_times, times, ci)
 
     if (ci) {
         # Make CIs
@@ -175,8 +205,10 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
         probs  <- merge2
     }
-
+    
     # Add in columns for each covariate name to replace the single 'individual' column
-    separate_covariates(probs, colnames(newdata))
-
+    newd_key <- data.table::as.data.table(clean_newdata(newdata, models, agelimit, agecol))
+    clean <- newd_key[probs, on=c('id'='individual')]
+    clean[, id:=NULL]
+    as.data.frame(clean)
 }

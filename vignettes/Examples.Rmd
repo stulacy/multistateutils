@@ -23,14 +23,29 @@ references:
   type: article-journal
   issued:
     year: 2011
+- id: tidydata
+  title: "Tidy data"
+  author:
+  - family: Wickham
+    given: Hadley
+  container-title: Journal of Statistical Software
+  volume: 59
+  type: article-journal
+  issued:
+    year: 2014
 ---
 
 ```{r setup, include = FALSE}
+library(dplyr)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
 set.seed(17)  # For reproducibility's sake
+```
+
+```{r incmsu, eval=T}
+library(multistateutils)
 ```
 
 ## Introduction
@@ -52,7 +67,7 @@ head(ebmt3)
 `mstate` provides a host of utility functions for working with multi-state models. For example, the `trans.illdeath()` function provides the required transition matrix for this state structure (`transMat` should be used when greater flexibility is required).
 
 ```{r}
-tmat <- trans.illdeath()
+tmat <- trans.illdeath(c('transplant', 'pr', 'rfs'))
 tmat
 ```
 
@@ -95,10 +110,9 @@ The function that estimates transition probabilities is called `predict_transiti
   - $h$ - not specified as the probabilities are calculated for all states
   - $j$ - not specified as the probabilities are calculated for all states
   
-The code example below shows how to calculate transition probabilities for $t=365$ (1 year) with $s=0$; the transition probabilities for every state at 1 year after transplant given being in every state at transplant time. As with `pmatrix.simfs`, although all the probabilities for every pairwise combination of states are calculated, they are sometimes redundant. For example, $P_{h,j}(0, 365)$ where $h=j=\text{death}$ is hardly a useful prediction.
+The code example below shows how to calculate transition probabilities for $t=365$ (1 year) with $s=0$; the transition probabilities for every state at 1 year after transplant given being in every state at transplant time. As with `pmatrix.simfs`, although all the probabilities for every pairwise combination of states are calculated, they are sometimes redundant. For example, $P_{h,j}(0, 365)$ where $h=j=\text{rfs}$ is hardly a useful prediction.
 
 ```{r example1}
-library(multistateutils)
 predict_transitions(models, newdata, tmat, times=365)
 ```
 
@@ -237,7 +251,7 @@ To estimate transition probabilities for models with state-arrival times, the va
 newdata_arrival <- data.frame(age="20-40", dissub="AML", Tstart=0)
 ```
 
-Then in `predict_transitions` simply specify which variables in `newdata` are time-dependent, that is they increment at each transition along with the current clock value. This is particularly useful for modelling patient age at each state entry, rather than at the starting state. Notice how this slightly changes the probability of being in *death* from a person starting in *healthy* compared to the example below that omits the `tcovs` argument. 
+Then in `predict_transitions` simply specify which variables in `newdata` are time-dependent, that is they increment at each transition along with the current clock value. This is particularly useful for modelling patient age at each state entry, rather than at the starting state. Notice how this slightly changes the probability of being in *rfs* from a person starting in *transplant* compared to the example below that omits the `tcovs` argument. 
 
 ```{r}
 predict_transitions(models_arrival, newdata_arrival, tmat, times=365, tcovs='Tstart')
@@ -302,7 +316,7 @@ Similarly, the length of stay functionality provided by `totlos.simfs` has also 
 length_of_stay(models, 
                newdata=newdata,
                tmat, times=365.25*3,
-               start=1)
+               start_state='transplant')
 ```
 
 ```{r}
@@ -316,7 +330,7 @@ length_of_stay(models,
                newdata=data.frame(age=c(">40", ">40"),
                                   dissub=c('CML', 'AML')),
                tmat, times=c(1, 3, 5)*365.25,
-               start=c('healthy', 'illness'))
+               start_state=c('transplant', 'pr'))
 ```
 
 ## State flow diagram
@@ -333,3 +347,222 @@ $$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
 time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 1)
 ```
+
+## Discrete event simulation
+
+In addition to predicting an individual's progression through the statespace, we can also simulate an entire cohort's passage.
+This is useful for situations where we have a heterogeneous group and are interested in obtaining estimates of measures such as the amount of time spent in each state for individuals with certain covariates.
+A common use is in health economic modelling, where multi-state models are used to represent patient treatment pathways with costs associated with each treatment state.
+The application of multi-state modelling in these contexts is often referred to as **discrete event simulation** and can be used to estimate the total number of patients receiving a certain treatment in a given timeframe, or survival rates of individuals with certain characteristics. 
+
+The `cohort_simulation` function provides this functionality, and is specified very similarly to the other functions in this package, requiring:
+
+  - a list of fitted `flexsurv` parametric models
+  - a transition matrix of the same format used above
+  - characteristics of individuals to be simulated stored in a data frame
+
+```{r}
+sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+```
+
+The output is a long data frame where each row corresponds to an individual entering a new state.
+The first rows below show that every individual enters the system in state 1 at time 0, which is the default behaviour.
+
+```{r}
+head(sim)
+```
+
+These initial conditions can be changed; for example, the `start_state` argument accepts either a single value representing the state that everyone enters in, or a vector of values with as many entries as there are observations in `newdata`. 
+The simulation below evenly splits patients between starting in the initial state (*transplant*) and platelet recovery (state 2).
+
+```{r}
+sim2 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+                         start_state = sample(c(1, 2), nrow(ebmt3), replace=T))
+head(sim2)
+```
+
+Likewise, the individuals don't have to enter the simulation at $t=0$.
+The `start_time` parameter is specified in the same manner as `start_state`, accepting either a single value or a vector containing a time for each individual. 
+The example below shows the case where individuals enter the system every 10 days, which means having a transplant in the `ebmt3` dataset we've been using.
+
+```{r}
+sim3 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+                         start_state = sample(c(1, 2), nrow(ebmt3), replace=T),
+                         start_time = seq(0, 10*(nrow(ebmt3)-1), by=10))
+head(sim3)
+```
+
+It is often useful to run a simulation over a set time-period; for example, if we are interested in looking at the cost to the health care provider from treating a particular disease over 10 years.
+The `time_limit` argument allows for this use-case by terminating the simulation at the given time.
+
+The model below uses the same incidence model of a transplant every ten days but now terminates at 10 years, which is reflected in the simulation output.
+
+```{r}
+sim4 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+                         start_state = sample(c(1, 2), nrow(ebmt3), replace=T),
+                         start_time = seq(0, 10*(nrow(ebmt3)-1), by=10),
+                         time_limit = 10*365.25)
+tail(sim4)
+```
+
+## Old age mortality
+
+One challenge with using simulation to obtain estimates is that it is possible to generate unrealistic situations, such as a person living for several hundred years, due to the use of unbounded probability distributions to model event times.
+
+For example, in the output of the first cohort simulation from the previous section, the oldest patient dies `r sim %>% filter(state == 'rfs') %>% summarise(m=round(max(time)/365.25)) %>% pull(m)` years after the transplant!
+
+```{r}
+sim %>%
+    arrange(desc(time)) %>%
+    head()
+```
+
+To combat this, each of `prediction_transitions`, `length_of_stay`, and `cohort_simulation` allow the option to specify a hard limit after which a patient is considered dead, effectively placing bounds on the transition time distributions.
+
+This is achieved through 3 arguments:
+
+  - `agelimit`: This is either `FALSE`, in which case no limit is applied, or is a numeric value detailing the requested limit
+  - `agecol`: The column in `newdata` that holds the patient age at entry to the simulation
+  - `agescale`: Often, age is measured on a different time-scale to the rest of the study. For example, in many health studies age will be measured in years while study time will be recorded in months or days. This argument provides the scaling factor to be applied to the individual's age to place it on the same time-scale as the study. Defaults to 1.
+  
+The example below shows how to use this in practice.
+Firstly, however, a dummy continuous age covariate needs to be added, as `ebmt3` only provides age groups.
+Here we are saying that anyone is considered dead at the age of 100 (not 100 years after having the transplant).
+
+```{r}
+# Make dataset with age in
+n_lt20 <- sum(ebmt3$age == '<=20')
+n_gt20 <- sum(ebmt3$age == '20-40')
+n_gt40 <- sum(ebmt3$age == '>40')
+ebmt3$age_cont <- 0
+ebmt3$age_cont[ebmt3$age == '<=20'] <- runif(n_lt20, 1, 20)
+ebmt3$age_cont[ebmt3$age == '20-40'] <- runif(n_gt20, 21, 40)
+ebmt3$age_cont[ebmt3$age == '>40'] <- runif(n_gt40, 40, 80)
+
+sim5 <- cohort_simulation(models, ebmt3[, c('age', 'dissub', 'age_cont')], tmat,
+                          agelimit=36525, agecol='age_cont')
+```
+
+The maximum state entry time is now `r sim5 %>% top_n(1, time) %>% mutate(time=round(time/365.25)) %>% pull(time)` years, which means they died at the age of `r sim5 %>% top_n(1, time) %>% mutate(agedead = round((age_cont * 365.25 + time) / 365.25)) %>% pull(agedead)`, showing that the hard limit is working.
+
+**NB: these arguments are also in the `predict_transitions` and `length_of_stay` functions, although they are less useful there.**
+
+```{r}
+sim5 %>%
+    arrange(desc(time)) %>%
+    head()
+```
+
+## `msrep2`
+
+A large part of working with multi-state models involves converting raw data into a format suitable for transition-specific analysis.
+The `mstate` package provides the `msprep` function to aid with this; it converts from a wide data frame where each row corresponds to a given individual, to a long based format where each row relates to a possible state transition (observed or not).
+
+As an example using the same `ebmt3` dataset, we have the initial dataset in a wide format with:
+  - a patient identifier (`id`) 
+  - two possible states that can be entered, specified by entry time (`prtime` and `rfstime`) and entry indicator (`prstat`, `rfsstat`) 
+  - individual level covariates (`dissub`, `age`, `drmatch`, `tcd`).
+
+```{r}
+head(ebmt3)
+```
+
+`msprep` then uses the transition matrix to form a data frame with each possible transition in the rows, for example, rows 1 and 2 reflect that individual 1 was in state 1 at time 0 and moved into state 2 at 23 days, thereby censoring the transition from 1->3 at the same timepoint.
+
+```{r}
+long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
+               status=c(NA, 'prstat', 'rfsstat'), 
+               data=ebmt3, 
+               trans=tmat, 
+               keep=c('age', 'dissub'))
+head(long)
+```
+
+This is a very useful function since it saves a lot of time munging the data and is used in every multi-state modelling related analysis I do.
+
+However, it does have one slight limitation, in that the required wide format of the input data isn't necessarily a natural way of organising state entry data.
+See @tidydata for a discussion of what makes data 'tidy', but in this situation the unit of observation is a state entry and so this is what should be recorded on the rows, not necessarily an individual.
+Often I have to spend time converting from my raw data, where each row corresponds to a state entry, to this wide format before `msprep` can be used.
+Furthermore, having one column per state means that this function doesn't allow for reversible Markov chains, where a person enters the same state more than once.
+
+To address this, `multistateutils` provides an alternative version of `msprep` that accepts data in long format. 
+This function, unimaginitivly called `msprep2`, requires a data frame with 3 columns: `id`, `state`, and `time`, so that each individual has as many rows as they have state entries. 
+
+Let's show an example for the first 2 patients in `ebmt3`:
+
+  - The first enters `pr` at time 23 and has last follow-up at $t=744$.
+  - Patient 2 enters `rfs` at time 35 before entering `rfs` at $t=360$.
+
+```{r}
+ebmt3 %>% filter(id %in% 1:2)
+```
+
+In long format this is more straightforward and keeps the fields to a minimum, helping to focus on the states that actually are visited.
+
+```{r}
+entry <- data.frame(id=c(1, 2, 2),
+                    state=c(2, 2, 3),
+                    time=c(23, 35, 360))
+entry
+```
+
+Passing this into `msprep2` produces an output that looks similar, but not identical to the one from `msprep`.
+The discrepancy is in patient 1, as their right censored transition from state 2->3 is no longer included. 
+
+```{r}
+msprep2(entry, tmat)
+```
+
+Censored observations are included by means of supplying a data frame to the `censors` argument with fields: `id` and `censor_time`. 
+Note that below we only add a value for patient 1, since we have complete follow-up on patient 2.
+
+This is cleaner than `msprep` where all states that aren't visited need to have a censored observation time supplied, even if a patient has entered a sink state, while here only a single last follow-up time per patient is required. 
+
+```{r}
+cens <- data.frame(id=1, censor_time=744)
+msprep2(entry, tmat, censors = cens)
+```
+
+The final difference from the `msprep` output is the lack of covaries.
+Like with the censoring times, these are parameterised by a data frame indexed by `id`, with the remaining columns being any covariate of interest.
+
+This method of supplying three separate tidy data frames for the state entry times, censor times, and covariates is consistent with how data is stored in relational databases and so should be familiar to most people already.
+
+```{r}
+covars <- ebmt3 %>% filter(id %in% 1:2) %>% select(id, age, dissub)
+msprep2(entry, tmat, censors = cens, covars = covars)
+```
+
+An additional benefit of using a long data frame for state entries is that it allows reversible transitions.
+As a quick demonstration, let us consider an extension of the illness-death model where a person can be cured, i.e. transition back from illness->healthy.
+
+```{r}
+states <- c('healthy', 'illness', 'death')
+tmat2 <- matrix(c(NA, 3, NA, 1, NA, NA, 2, 4, NA), nrow=3, ncol=3, 
+                dimnames=list(states, states))
+tmat2
+```
+
+I'll generate two individuals:
+
+  1. Moves from healthy->illness->death
+  2. Moves from healthy->illness ,then recovers and goes back into healthy, before getting ill again and subsequently dying.
+
+```{r}
+multistate_entry <- data.frame(id=c(rep(1, 2),
+                                    rep(2, 4)),
+                               state=c('illness', 'death',
+                                       'illness', 'healthy', 'illness', 'death'),
+                               time=c(6, 11,
+                                      7, 12, 17, 22))
+multistate_entry
+```
+
+And as can be seen below, this works with `msprep2`.
+
+```{r}
+msprep2(multistate_entry, tmat2)
+```
+
+
+## References

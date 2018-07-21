@@ -1,1 +1,0 @@
-  - Make cohort simulation for calculating cohort probabilities (using things like accepting list of flexsurv models and doing all the converting, so the web front end is just that)

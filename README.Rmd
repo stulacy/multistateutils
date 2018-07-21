@@ -13,6 +13,10 @@ knitr::opts_chunk$set(
 set.seed(17)  # reproducible examples / runtimes
 ```
 
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/multistateutils)](https://cran.r-project.org/package=multistateutils)
+[![Travis-CI Build Status](https://travis-ci.org/stulacy/multistateutils.svg?branch=master)](https://travis-ci.org/stulacy/multistateutils)
+[![Coverage Status](https://img.shields.io/codecov/c/github/stulacy/multistateutils/master.svg)](https://codecov.io/github/stulacy/multistateutils?branch=master)
+
 # multistateutils
 
 `multistateutils` provides a number of useful functions for analyzing parametric multi-state models. In this way it does not aim to supplement the modelling strategies found in `mstate`, `msm`, or `flexsurv`, but rather provide tools for subsequent analysis. It is designed to be used with semi-Markov multi-state models of healthcare data, but can be used for any system that can be discretized into the states being entered at observed time-points, with parametric families providing appropriate fits for these transition rates. 
@@ -27,22 +31,18 @@ Examples of these features are provided below in *Examples*.
 
 ## Installation
 
-You can install `multistateutils` from github with:
+You can install the latest release version from CRAN with:
+
+```{r installcran, eval=FALSE}
+install.packages("multistateutils")
+```
+
+Or the development version can also be installed directly from GitHub.
 
 ```{r gh-installation, eval = FALSE}
 install.packages("devtools")  # install devtools if it isn't already
 devtools::install_github("stulacy/multistateutils")
 ```
-
-### Windows
-
-Note that since the simulation engine is written in C++, Windows users will need to have `Rtools` installed, which can be obtained from [https://cran.r-project.org/bin/windows/Rtools/](https://cran.r-project.org/bin/windows/Rtools/), and then set to the right path with:
-
-```{r, eval=FALSE}
-devtools::find_rtools()
-```
-
-Once `Rtools` is setup run `devtools::install_github("stulacy/multistateutils")` as above.
 
 ## Examples
 
@@ -150,10 +150,84 @@ plot_predicted_pathway(models, tmat, newdata, time_points, 'healthy')
 
 ![](vignettes/state_pathway.png)
 
+## Discrete event simulation
+
+The underlying simulation engine can be easily adapted to run cohort-wide simulation, where the output statistics of interest are global rather individual level measures.
+This is useful for estimating healthcare related values, such as the average time spent receiving treatment for a given disease population.
+
+These discrete event simulations are run with the `cohort_simulation` function as below.
+They simply require a list of models as specified above, a cohort population, and the transition matrix.
+It outputs a long table where each row is an observed state entry for a given individual. 
+
+```{r}
+sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+head(sim)
+```
+
+By default the simulation runs until every individual reaches a sink state, but a longitudinal specification can be provided, such that the individuals enter the simulation at set incident times and the simulation terminates after a predefined period.
+This functionality is useful when estimating statistics over a finite time-period, such as the expected number of deaths in a 5-year range, but it requires a model of the incidence process (i.e. how often a new patient is diagnosed).
+See the *Examples* vignette for further details.
+
+## `msprep2`
+
+A large part of the work involved with multi-state modelling is basic munging of the data into a format suitable for modelling.
+The `msprep` function from the `mstate` package helps a lot here by converting a wide data frame where each row corresponds to a user with state entry times given in column, into a long format where each row represents a possible state transition.
+
+It does, however, have some slight limitations:
+
+  - Having to form a wide table in the first place with an entry time and status indicator for each state can be a bit time consuming and isn't necessarily a natural way of storing such data
+  - This wide format only allows an individual to enter a state once
+  - For censored state transitions it can be awkward having to replicate the censoring time for each non-visited state
+
+For these reasons I've created a modified version of `msprep`, imaginatively called `msprep2`, that performs the same role but accepts the input data as a tidy table of state entry times rather than a wide table at the individual level.
+
+In this format, each row in the input data frame corresponds to a known state entry time, and so non-visited states are simply omitted.
+The input data frame only needs 3 columns: an individual id, a state id, and the time of entry.
+Covariates and censoring information are provided by separate data frames that link back on the id, providing a cleaner interface and one that works well with data that is stored in relational databases. 
+
+The example below shows the data preparation for 2 individuals:
+
+  1. Enters state 2 at $t=23$ then no more transitions until last follow-up at $t=744$
+  2. Enters state 2 at $t=35$ then enters the absorptive state 3 at $t=360$
+
+```{r}
+entry <- data.frame(id=c(1, 2, 2),
+                    state=c(2, 2, 3),
+                    time=c(23, 35, 360))
+cens <- data.frame(id=1, censor_time=744)
+covars <- data.frame(id=1:2, age=c('>40', '20-40'), dissub=c('CML', 'AML'))
+msprep2(entry, tmat, censors = cens, covars = covars)
+```
+
+By specifying state entry as a long table there is now no limit to how many times a state can be entered by an individual. 
+Let's demonstrate this by extending the illness-death model to allow a patient to recover (i.e. transition from illness back to healthy).
+
+```{r}
+states <- c('healthy', 'illness', 'death')
+tmat2 <- matrix(c(NA, 3, NA, 1, NA, NA, 2, 4, NA), nrow=3, ncol=3, 
+                dimnames=list(states, states))
+tmat2
+```
+
+I'll create a dummy dataset with one individual moving from healthy->illness->death at times 6 and 11, while patient 2 goes from healthy->illness, then is cured and goes back to healthy, before moving back to illness and finally dying. 
+
+```{r}
+multistate_entry <- data.frame(id=c(rep(1, 2),
+                                    rep(2, 4)),
+                               state=c('illness', 'death',
+                                       'illness', 'healthy', 'illness', 'death'),
+                               time=c(6, 11,
+                                      7, 12, 17, 22))
+multistate_entry
+```
+
+As seen below, `msprep2` has no problem converting this into a list of possible transitions.
+Note that we don't need to pass in anything to `censors` because we have complete follow-up on both patients.
+
+```{r}
+msprep2(multistate_entry, tmat2)
+```
+
 ## Upcoming features
 
-I intend to release an interface to running a full cohort wide simulation, where the simulation entry (or incidence) function and patient characteristics may also be modelled, and the outcomes of interest are global measures, such as amount of total time spent in a particular state over a set time-frame. This was the original motivation for developing the simulation engine for its use in health economic evaluation. 
-
-There is currently a web-app (not currently publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny))  that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `multistateutils` and also provide an interface for individual level simulations, such as estimating transition probabilities.
-
-## References
+There is currently a web-app (not publicly accessible but the [source code is on Github](https://github.com/stulacy/RDES-Shiny)) that provides a graphical interface for the entire multi-state modelling process and simulation process for a cohort simulation. I'd like to tidy this up and get it functioning with this new version of `multistateutils` and also provide an interface for individual level simulations, such as estimating transition probabilities.
