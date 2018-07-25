@@ -66,8 +66,8 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
     proportions <- counts[, lapply(.SD, function(x) x / num_start),
                           .SDcols=end_state_names,
                           by=full_keys]
-    
-    # Set startstate column to be ordered in state order, and likewise destination 
+
+    # Set startstate column to be ordered in state order, and likewise destination
     # state order
     start_states_used <- intersect(state_names, unique(proportions$start_state))
     end_states_unused <- setdiff(state_names, end_state_names)
@@ -77,7 +77,7 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
     proportions[, start_state := factor(start_state, levels=start_states_used)]
     data.table::setcolorder(proportions, c(colnames(proportions)[seq(ncol(proportions)-nstates)],
                                            state_names))
-    
+
     setorder(proportions, individual, start_time, end_time, start_state)
     proportions
 }
@@ -85,7 +85,7 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 
 #' Estimates transition probabilities
 #'
-#' Estimates transition probabilities of an individual's passage 
+#' Estimates transition probabilities of an individual's passage
 #' through a multi-state model
 #' by discrete event simulation.
 #'
@@ -93,7 +93,7 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #' @param newdata Data frame with covariates of individual to simulate times for. Must contain all fields
 #'   required by models.
 #' @param trans_mat Transition matrix, such as that used in \code{mstate}.
-#' @param times Times at which to estimate transition probabilities. 
+#' @param times Times at which to estimate transition probabilities.
 #' @param start_times Conditional time for transition probability.
 #' @param tcovs As in \code{flexsurv::pmatrix.simfs}, this is the names of covariates that need to be
 #'   incremented by the simulation clock at each transition, such as age when modelled as age at state entry.
@@ -101,7 +101,7 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #' @param M Number of times to run the simulations in order to obtain confidence interval estimates.
 #' @param ci Whether to calculate confidence intervals. See \code{flexsurv::pmatrix.simfs} for details.
 #' @param ci_margin Confidence interval range to use if \code{ci} is set to \code{TRUE}.
-#' @param agelimit Whether to automatically assign people to an 'early death' state. 
+#' @param agelimit Whether to automatically assign people to an 'early death' state.
 #'   This is useful as otherwise individuals can be assigned unrealistic time-to-events due to the
 #'   nature of sampling times from a random number distribution.
 #'   If this value is \code{FALSE} then no limit is applied, otherwise provide the time-limit
@@ -111,33 +111,33 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #'   time-scale while age is typically measured in years.
 #' @param agecol The name of the column in \code{newdata} that holds an individual's age.
 #' @return A data frame with estimates of transition probabilities.
-#' 
-#' @examples 
-#' 
+#'
+#' @examples
+#'
 #' library(multistateutils)
 #' library(mstate)
 #' library(flexsurv)
-#' 
+#'
 #' # Convert data to long
 #' data(ebmt3)
 #' tmat <- trans.illdeath()
-#' long <- msprep(time=c(NA, 'prtime', 'rfstime'), 
-#'                status=c(NA, 'prstat', 'rfsstat'), 
-#'                data=ebmt3, 
-#'                trans=tmat, 
+#' long <- msprep(time=c(NA, 'prtime', 'rfstime'),
+#'                status=c(NA, 'prstat', 'rfsstat'),
+#'                data=ebmt3,
+#'                trans=tmat,
 #'                keep=c('age', 'dissub'))
-#'                
+#'
 #' # Fit parametric models
 #' models <- lapply(1:3, function(i) {
 #'     flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
 #' })
-#' 
+#'
 #' # New individual to estimate transition probabilities for
 #' newdata <- data.frame(age="20-40", dissub="AML")
-#' 
+#'
 #' # Estimate transition probabilties at 1 year
 #' predict_transitions(models, newdata, tmat, times=365)
-#' 
+#'
 #' # Estimate transition probabilties at 1 year given we know they're alive after 6 months
 #' predict_transitions(models, newdata, tmat, times=365, start_times = 365/2)
 #'
@@ -146,9 +146,9 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
 #' @export
 predict_transitions <- function(models, newdata, trans_mat, times,
                                 start_times=0, tcovs=NULL, N=1e5, M=1e3, ci=FALSE,
-                                ci_margin=0.95, 
+                                ci_margin=0.95,
                                 agelimit=FALSE, agecol='age', agescale=365.25) {
-    
+
     # CMD CHECK
     id <- NULL
 
@@ -160,23 +160,23 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
     if (any(sapply(start_times, function(s) s > times)))
         stop("Error: 'start_times' must be earlier than any value in 'times'.")
-    
+
     validate_oldage(agelimit, agecol, newdata)
 
     # Replicate new individuals, starting states, and times N times
-    newdata_ext <- newdata[rep(seq(nrow(newdata)), each=N), ]
+    newdata_ext <- dplyr::slice(newdata, rep(seq(nrow(newdata)), each=N))
     start_states <- obtain_individual_starting_states(trans_mat, nrow(newdata), N)
     initial_times <- rep(0, nrow(newdata_ext))
-    
+
     # Calculate state occupancies
-    occupancy <- state_occupancy(models, trans_mat, newdata_ext, tcovs, initial_times, 
+    occupancy <- state_occupancy(models, trans_mat, newdata_ext, tcovs, initial_times,
                                  start_states, ci, M, agelimit, agecol, agescale)
-    
+
     # Add in individual IDs
     individual_key <- data.table::data.table(id=seq(nrow(newdata_ext))-1,
                                              individual=rep(seq(nrow(newdata)), each=N)-1)
     occupancy <- individual_key[occupancy, on='id']
-    
+
     # Estimate transition probabilities, this will add 'simulation' as a key if used
     probs <- calculate_transition_probabilities(occupancy, start_times, times, ci)
 
@@ -205,7 +205,7 @@ predict_transitions <- function(models, newdata, trans_mat, times,
 
         probs  <- merge2
     }
-    
+
     # Add in columns for each covariate name to replace the single 'individual' column
     newd_key <- data.table::as.data.table(clean_newdata(newdata, models, agelimit, agecol))
     clean <- newd_key[probs, on=c('id'='individual')]
