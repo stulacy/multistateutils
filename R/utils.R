@@ -16,13 +16,13 @@ obtain_model_coef <- function(mod, attrs, M=1) {
                    list(0,
                         mod$limit
                         )))
-        
+
     } else if (class(mod) == 'flexsurvreg') {
         dist <- mod$dlist$name
         dist <- gsub("\\.[a-zA-Z]+", "", dist)
         attr_names <- colnames(attrs)
         param_names <- DISTS[[dist]]
-    
+
         if (M == 1) {
             coefs_as_list(stats::coef(mod), param_names, mod$mx, attr_names, dist)
         } else {
@@ -33,7 +33,7 @@ obtain_model_coef <- function(mod, attrs, M=1) {
         }
     } else {
         stop(paste0("Error: Unknown model class '",
-                    class(mod), 
+                    class(mod),
                     "'. Only flexsurvreg or oldage are currently supported."))
     }
 }
@@ -126,17 +126,17 @@ form_model_matrix <- function(dataframe, models) {
     stats::model.matrix(newform, dataframe)
 }
 
-# Used to get the states ids that have entered in LoS estimations 
+# Used to get the states ids that have entered in LoS estimations
 get_state_entries <- function(x) {
     x[-length(x)]
 }
 
 get_sink_states <- function(tmat) {
-    if (class(tmat) != 'matrix') 
+    if (class(tmat) != 'matrix')
         stop("Error: must provide a square transition matrix.")
-    if (ncol(tmat) != nrow(tmat)) 
+    if (ncol(tmat) != nrow(tmat))
         stop("Error: must provide a square transition matrix.")
-    
+
     rownames(tmat)[apply(tmat, 1, function(row) all(is.na(row)))]
 }
 
@@ -155,13 +155,13 @@ validate_starting_state <- function(start, trans_mat) {
         start_int <- match(start, colnames(trans_mat))
         if (any(is.na(start_int)))
             stop(paste0("Error: starting state '",
-                        start[is.na(start_int)], 
+                        start[is.na(start_int)],
                         "' not found in trans_mat."))
         start <- start_int
     } else if (is.numeric(start)) {
         if (any(start %% 1 != 0))
             stop("Error: start_state must be an integer or the name of a state.")
-            
+
         # See if integer is valid one
         if (any(!start %in% seq_along(rownames(trans_mat))))
             stop(paste0("Error: if providing an integer for start_state ensure that it is in the range 1:",
@@ -178,14 +178,14 @@ validate_starting_state <- function(start, trans_mat) {
 # start Starting state as integer index in transition matrix
 # trans_mat Transition matrix where null indicates no transition.
 get_visited_states <- function(start, trans_mat) {
-    
+
     # Don't really want to guard start as it passing NULL is the
     # termination criteria of this recursive function
-    if (ncol(trans_mat) != nrow(trans_mat)) 
+    if (ncol(trans_mat) != nrow(trans_mat))
         stop("Error: must provide a square transition matrix.")
     if (!(start >= 1 && start <= ncol(trans_mat)))
         stop(paste0("Error: start must be an integer in range 1:", ncol(trans_mat), "."))
-    
+
     # Obtain the states that this starting state directly feeds into
     vis <- unname(which(!is.na(trans_mat[start, ])))
     if (length(vis) == 0) {
@@ -196,25 +196,25 @@ get_visited_states <- function(start, trans_mat) {
     }
 }
 
-# For individual simulation, such as estimating transition probabilities or 
+# For individual simulation, such as estimating transition probabilities or
 # length of stay, we want to uniformly distribute them amongst the possible
-# starting states. 
+# starting states.
 # This function determines these.
 obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
-    
+
     if (!is.numeric(ninds) || !is.numeric(nreps))
         stop("Error: ninds and nreps must be positive integers.")
-    
+
     if (ninds %% 1 != 0 || nreps %% 1 != 0)
         stop("Error: ninds and nreps must be positive integers.")
-    
+
     if (ninds <= 0 || nreps <= 0)
         stop("Error: ninds and nreps must be positive integers.")
-    
+
     # Split people to evenly start in non-sink states.
     # Assign 1 person per sink state to get probability of 1
     is_sink <- apply(trans_mat, 1, function(col) all(is.na(col)))
-    sink_states <- unname(which(is_sink)) 
+    sink_states <- unname(which(is_sink))
     non_sink <- setdiff(seq(ncol(trans_mat)), sink_states)
 
     # Form vector of starting states, one per individual uniformly distributed
@@ -226,10 +226,10 @@ obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
 get_covariates <- function(models) {
     if (!"list" %in% class(models))
         stop("Error: must provide a list of flexsurvreg objects.")
-    
+
     if (!all(sapply(models, class) %in% c('flexsurvreg', 'oldage')))
         stop("Error: must provide a list of flexsurvreg objects.")
-    
+
     cov_names <- unique(unlist(lapply(models, function(x) {
         attr(x$concat.formula, "covnames")
     })))
@@ -238,35 +238,35 @@ get_covariates <- function(models) {
 clean_newdata <- function(newdata, models, agelimit, agecol) {
     # Filter newdata to covariates in models
     used_covars <- get_covariates(models)
-    
-    
+
+
     if (is.numeric(agelimit)) {
         if (! agecol %in% used_covars)
             used_covars <- c(used_covars, agecol)
     }
-    
+
     miss_cols <- setdiff(used_covars, colnames(newdata))
-    if (length(miss_cols) > 0) 
-        stop(paste0("Error: missing columns ", 
+    if (length(miss_cols) > 0)
+        stop(paste0("Error: missing columns ",
                     paste(miss_cols, collapse=', '),
                     " in newdata."))
 
-    newdata <- newdata[, used_covars]
+    newdata <- dplyr::select(newdata, dplyr::one_of(used_covars))
     newdata$id <- seq(nrow(newdata)) - 1  # Add column id as rownumber 0-indexed
     newdata
 }
-    
+
 validate_oldage <- function(agelimit, agecol, newdata) {
     if (agelimit == FALSE) {
         return(TRUE)
     }
-    
+
     if (!(is.numeric(agelimit) && agelimit > 0))
         stop("Error: If agelimit is provided it must be a positive numerical value.")
-    
-    if (!agecol %in% colnames(newdata)) 
+
+    if (!agecol %in% colnames(newdata))
         stop(paste0("Error: agecol '", agecol, "' not found in newdata."))
-    
+
     TRUE
 }
 
