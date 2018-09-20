@@ -9,9 +9,9 @@ Description: Provides functions for working with multi-state modelling,
     such as efficient simulation routines for estimating transition probabilities and length of stay.
     It is designed as an extension to multi-state modelling capabilities provided with the 'flexsurv' 
     package (see Jackson (2016) <doi:10.18637/jss.v070.i08>).
-License: GPL (>= 2)
-Imports: data.table, dplyr, magrittr, networkD3, tidyr
-Suggests: flexsurv, mstate, microbenchmark, rmarkdown,
+License: GPL (>= 3)
+Imports: data.table, dplyr, flexsurv, magrittr, networkD3, tidyr
+Suggests: mstate, microbenchmark, rmarkdown,
     knitr,
     testthat,
     covr
