@@ -16,6 +16,7 @@ Suggests: flexsurv, mstate, microbenchmark, rmarkdown,
     testthat,
     covr
 URL: https://github.com/stulacy/multistateutils
+BugReports: https://github.com/stulacy/multistateutils/issues
 LinkingTo: Rcpp
 RoxygenNote: 6.1.0
 VignetteBuilder: knitr
