@@ -12,7 +12,7 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
     NumericMatrix trans_params;
 
     nstates = trans_mat.nrow();
-    
+
     // Setup states
     for (int source=0; source < nstates; source++) {
         State nstate = State(source);
@@ -21,13 +21,13 @@ Simulation::Simulation(List trans_list, IntegerMatrix trans_mat, NumericMatrix a
             if (cell == 0) { // No transition is indicated by 0 in transition matrix
                 continue;
             }
-            
+
             // Have found a transition
             this_trans = as<List>(trans_list[cell-1]);  // Convert back to 0-index
             trans_name  = as<std::string>(this_trans["name"]);
 
             // Extract transition coefficients and pass appropriate values into Transition factory
-            nstate.add_transition(std::move(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]), tcovs)));
+            nstate.add_transition(Transition::create_transition(trans_name, dest, as<List>(this_trans["coefs"]), tcovs));
         }
         states.emplace_back(std::move(nstate));
     }
