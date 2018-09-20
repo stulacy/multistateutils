@@ -343,10 +343,12 @@ Note that the image below is actually an HTML widget and therefore **interactive
 
 $$P_{h,j}(s, t) = \Pr(X(t) = j\ |\ X(s) = h)$$
 
-```{r}
+```{r, eval=F}
 time_points <- seq(0, 10, by=2) * 365.25
 plot_predicted_pathway(models, tmat, newdata, time_points, 1)
 ```
+
+![](treatmentpathways.png)
 
 ## Discrete event simulation
 
