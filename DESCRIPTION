@@ -10,11 +10,18 @@ Description: Provides functions for working with multi-state modelling,
     It is designed as an extension to multi-state modelling capabilities provided with the 'flexsurv' 
     package (see Jackson (2016) <doi:10.18637/jss.v070.i08>).
 License: GPL (>= 3)
-Imports: data.table, dplyr, flexsurv, magrittr, networkD3, tidyr
-Suggests: mstate, microbenchmark, rmarkdown,
+Imports: data.table, 
+    dplyr, 
+    magrittr, 
+    networkD3, 
+    tidyr
+Suggests: covr,
     knitr,
-    testthat,
-    covr
+    flexsurv, 
+    mstate, 
+    microbenchmark, 
+    rmarkdown,
+    testthat
 URL: https://github.com/stulacy/multistateutils
 BugReports: https://github.com/stulacy/multistateutils/issues
 LinkingTo: Rcpp
