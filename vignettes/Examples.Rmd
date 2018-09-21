@@ -364,7 +364,7 @@ The `cohort_simulation` function provides this functionality, and is specified v
   - characteristics of individuals to be simulated stored in a data frame
 
 ```{r}
-sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+sim <- cohort_simulation(models, ebmt3, tmat)
 ```
 
 The output is a long data frame where each row corresponds to an individual entering a new state.
@@ -378,7 +378,7 @@ These initial conditions can be changed; for example, the `start_state` argument
 The simulation below evenly splits patients between starting in the initial state (*transplant*) and platelet recovery (state 2).
 
 ```{r}
-sim2 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+sim2 <- cohort_simulation(models, ebmt3, tmat, 
                          start_state = sample(c(1, 2), nrow(ebmt3), replace=T))
 head(sim2)
 ```
@@ -388,7 +388,7 @@ The `start_time` parameter is specified in the same manner as `start_state`, acc
 The example below shows the case where individuals enter the system every 10 days, which means having a transplant in the `ebmt3` dataset we've been using.
 
 ```{r}
-sim3 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+sim3 <- cohort_simulation(models, ebmt3, tmat, 
                          start_state = sample(c(1, 2), nrow(ebmt3), replace=T),
                          start_time = seq(0, 10*(nrow(ebmt3)-1), by=10))
 head(sim3)
@@ -400,7 +400,7 @@ The `time_limit` argument allows for this use-case by terminating the simulation
 The model below uses the same incidence model of a transplant every ten days but now terminates at 10 years, which is reflected in the simulation output.
 
 ```{r}
-sim4 <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat, 
+sim4 <- cohort_simulation(models, ebmt3, tmat, 
                          start_state = sample(c(1, 2), nrow(ebmt3), replace=T),
                          start_time = seq(0, 10*(nrow(ebmt3)-1), by=10),
                          time_limit = 10*365.25)
@@ -441,7 +441,7 @@ ebmt3$age_cont[ebmt3$age == '<=20'] <- runif(n_lt20, 1, 20)
 ebmt3$age_cont[ebmt3$age == '20-40'] <- runif(n_gt20, 21, 40)
 ebmt3$age_cont[ebmt3$age == '>40'] <- runif(n_gt40, 40, 80)
 
-sim5 <- cohort_simulation(models, ebmt3[, c('age', 'dissub', 'age_cont')], tmat,
+sim5 <- cohort_simulation(models, ebmt3, tmat,
                           agelimit=36525, agecol='age_cont')
 ```
 

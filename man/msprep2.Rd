@@ -15,21 +15,21 @@ Note that the \code{state} and \code{time} fields must be labelled this way.}
 
 \item{tmat}{Transition matrix in the standard format required by \code{msprep}.}
 
-\item{censors}{A long data frame with 2 columns, \code{id} and \code{censor_time}. 
+\item{censors}{A long data frame with 2 columns, \code{id} and \code{censor_time}.
 Gives the last follow-up time for individuals that haven't entered a sink state.}
 
-\item{start_times}{A long data frame with 2 columns, \code{id} and \code{start_time}. 
+\item{start_times}{A long data frame with 2 columns, \code{id} and \code{start_time}.
 Gives the time at which the patient entered the simulation. Defaults to 0.}
 
-\item{start_states}{A long data frame with 2 columns, \code{id} and \code{start_state}. 
+\item{start_states}{A long data frame with 2 columns, \code{id} and \code{start_state}.
 Gives the state the patient entered the simulation in. Defaults to 1.}
 
 \item{covars}{Data frame where each row corresponds to an individual and details their
 covariate values. Must contain the id column specified in \code{idcol} alongside
 any covariate fields of interest.}
 
-\item{idcol}{The column that indexes these patients, must be present in 
-\code{entry} and \code{censors}, \code{start_times}, \code{start_states}, 
+\item{idcol}{The column that indexes these patients, must be present in
+\code{entry} and \code{censors}, \code{start_times}, \code{start_states},
 and \code{covars} if supplied.}
 }
 \description{
@@ -44,4 +44,15 @@ state entry data than the wide format required by \code{msprep}.
 An additional benefit of having the state entries organised in this fashion is that
 it allows for the situation where an individual enters the same state multiple times,
 which is not supported by \code{msprep}.
+}
+\examples{
+ library(multistateutils)
+ library(mstate)
+
+ tmat <- trans.illdeath()
+ entry <- data.frame(id=c(1, 2, 2),
+                     state=c(2, 2, 3),
+                     time=c(23, 35, 360))
+
+ msprep2(entry, tmat)
 }
