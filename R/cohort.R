@@ -12,17 +12,37 @@
 #' @param time_limit The maximum time to run the simulation for. If not provided then
 #'   the simulation runs until all the individuals have obtained a sink state.
 #' @return A data frame with state entry times for each individual.
+#' @examples
+#' library(multistateutils)
+#' library(mstate)
+#' library(flexsurv)
+#'
+#' # Convert data to long
+#' data(ebmt3)
+#' tmat <- trans.illdeath()
+#' long <- msprep(time=c(NA, 'prtime', 'rfstime'),
+#'                status=c(NA, 'prstat', 'rfsstat'),
+#'                data=ebmt3,
+#'                trans=tmat,
+#'                keep=c('age', 'dissub'))
+#'
+#' # Fit parametric models
+#' models <- lapply(1:3, function(i) {
+#'     flexsurvreg(Surv(time, status) ~ age + dissub, data=long, dist='weibull')
+#' })
+#'
+#' sim <- cohort_simulation(models, ebmt3, tmat)
 #' @export
 cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_state=1,
                               time_limit=NULL,
                               tcovs=NULL, M=1e3, ci=FALSE, ci_margin=0.95,
                               agelimit=FALSE, agecol='age', agescale=365.25) {
-    
+
     # Required by CRAN checks
     state <- NULL
     id <- NULL
     time <- NULL
-    
+
     if (ncol(trans_mat) != nrow(trans_mat)) {
         stop(paste0("Error: trans_mat has differing number of rows and columns (",
                     nrow(trans_mat), " and ",
@@ -30,9 +50,9 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
     }
 
     N <- nrow(newdata)
-    
+
     validate_oldage(agelimit, agecol, newdata)
-    
+
     newdata <- clean_newdata(newdata, models, agelimit, agecol)
 
     if (length(start_time) == 1)
@@ -55,7 +75,7 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
             stop("Error: time_limit must be a positive number.")
         if (time_limit <= 0)
             stop("Error: time_limit must be a positive number.")
-        
+
         incident_before_timelimit <- start_time <= time_limit
         newdata <- newdata[incident_before_timelimit, ]
         start_time <- start_time[incident_before_timelimit]
@@ -64,10 +84,10 @@ cohort_simulation <- function(models, newdata, trans_mat, start_time=0, start_st
 
     occupancy <- state_occupancy(models, trans_mat, newdata, tcovs, start_time,
                                  start_state, ci, M, agelimit, agecol, agescale)
-    
+
     if (!is.null(time_limit))
         occupancy <- occupancy[time <= time_limit]
-    
+
     # Add covariates
     clean <- data.table::as.data.table(newdata)[occupancy, on='id']
     setcolorder(clean, c('id', setdiff(names(clean), 'id')))

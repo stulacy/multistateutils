@@ -163,7 +163,7 @@ They simply require a list of models as specified above, a cohort population, an
 It outputs a long table where each row is an observed state entry for a given individual. 
 
 ```{r}
-sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+sim <- cohort_simulation(models, ebmt3, tmat)
 head(sim)
 ```
 
