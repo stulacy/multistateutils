@@ -34,17 +34,17 @@ test_that("predict_transitions is within 1% of pmatrix.simfs", {
     rdes <- predict_transitions(models, newdata, tmat, times = 100)
     pmat <- pmatrix.simfs(models, tmat, newdata=newdata, t=100)
 
-    diff <- unname(pmat / as.matrix(rdes[, 6:8]))
+    diff <- unname(pmat - as.matrix(rdes[, 6:8]))
 
-    # Should have lower diagonal as zero, hence NaN
-    expect_equal(diff[2, 1], NaN)
-    expect_equal(diff[3, 1], NaN)
-    expect_equal(diff[3, 2], NaN)
+    # Lower diagonal in both should be 0
+    expect_equal(diff[2, 1], 0)
+    expect_equal(diff[3, 1], 0)
+    expect_equal(diff[3, 2], 0)
+    expect_equal(diff[3, 3], 0)
 
     # Then remainder of matrix is where have actual probs that want to be within 1%
-    expect_equal(all(diff[1, ] > 0.99 && diff[1, ] < 1.01), TRUE)
-    expect_equal(all(diff[2, 2:3] > 0.99 && diff[2, 2:3] < 1.01), TRUE)
-    expect_equal(diff[3, 3], 1)
+    expect_equal(all(diff[1, ] > -1 & diff[1, ] < 1), TRUE)
+    expect_equal(all(diff[2, 2:3] > -1 & diff[2, 2:3] < 1), TRUE)
 
 })
 
@@ -68,17 +68,17 @@ test_that("predict_transitions is within 1% of pmatrix.simfs for a single catego
     rdes <- predict_transitions(models, newdata, tmat, times = 100)
     pmat <- pmatrix.simfs(models, tmat, newdata=newdata, t=100)
 
-    diff <- unname(pmat / as.matrix(rdes[, 5:7]))
+    diff <- unname(pmat - as.matrix(rdes[, 5:7]))
 
-    # Should have lower diagonal as zero, hence NaN
-    expect_equal(diff[2, 1], NaN)
-    expect_equal(diff[3, 1], NaN)
-    expect_equal(diff[3, 2], NaN)
+    # Lower diagonal in both should be 0
+    expect_equal(diff[2, 1], 0)
+    expect_equal(diff[3, 1], 0)
+    expect_equal(diff[3, 2], 0)
+    expect_equal(diff[3, 3], 0)
 
     # Then remainder of matrix is where have actual probs that want to be within 1%
-    expect_equal(all(diff[1, ] > 0.99 && diff[1, ] < 1.01), TRUE)
-    expect_equal(all(diff[2, 2:3] > 0.99 && diff[2, 2:3] < 1.01), TRUE)
-    expect_equal(diff[3, 3], 1)
+    expect_equal(all(diff[1, ] > -1 & diff[1, ] < 1), TRUE)
+    expect_equal(all(diff[2, 2:3] > -1 & diff[2, 2:3] < 1), TRUE)
 
 })
 
@@ -103,17 +103,17 @@ test_that("predict_transitions is within 1% of pmatrix.simfs for a single contin
     rdes <- predict_transitions(models, newdata, tmat, times = 100)
     pmat <- pmatrix.simfs(models, tmat, newdata=newdata, t=100)
 
-    diff <- unname(pmat / as.matrix(rdes[, 5:7]))
+    diff <- unname(pmat - as.matrix(rdes[, 5:7]))
 
-    # Should have lower diagonal as zero, hence NaN
-    expect_equal(diff[2, 1], NaN)
-    expect_equal(diff[3, 1], NaN)
-    expect_equal(diff[3, 2], NaN)
+    # Lower diagonal in both should be 0
+    expect_equal(diff[2, 1], 0)
+    expect_equal(diff[3, 1], 0)
+    expect_equal(diff[3, 2], 0)
+    expect_equal(diff[3, 3], 0)
 
     # Then remainder of matrix is where have actual probs that want to be within 1%
-    expect_equal(all(diff[1, ] > 0.99 && diff[1, ] < 1.01), TRUE)
-    expect_equal(all(diff[2, 2:3] > 0.99 && diff[2, 2:3] < 1.01), TRUE)
-    expect_equal(diff[3, 3], 1)
+    expect_equal(all(diff[1, ] > -1 & diff[1, ] < 1), TRUE)
+    expect_equal(all(diff[2, 2:3] > -1 & diff[2, 2:3] < 1), TRUE)
 
 })
 
