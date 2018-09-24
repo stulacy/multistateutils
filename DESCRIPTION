@@ -21,7 +21,8 @@ Suggests: covr,
     mstate, 
     microbenchmark, 
     rmarkdown,
-    testthat
+    testthat,
+    webshot
 URL: https://github.com/stulacy/multistateutils
 BugReports: https://github.com/stulacy/multistateutils/issues
 LinkingTo: Rcpp
