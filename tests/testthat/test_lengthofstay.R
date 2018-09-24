@@ -33,15 +33,24 @@ test_that("length_of_stay is consistent with totlos.simfs", {
     newdata <- data.frame(age="20-40", dissub="AML")
     tmat <- trans.illdeath()
 
+    # Test with everyone in starting state
     los <- length_of_stay(models, newdata, tmat, 365, start_state=1)
     simfs <- totlos.simfs(models, tmat, t=365, start=1, newdata=newdata)
-    diff <- unname(as.matrix(los[1, 5:7] - simfs))
-    expect_equal(all(diff > -1 & diff < 1), TRUE)
+    diff <- unname(as.matrix(los[1, 5:7] / simfs))
 
+    # 5% tolerance
+    expect_equal(all(diff > 0.95 & diff < 1.05), TRUE)
+
+    # Test with everyone starting in state 2
     los <- length_of_stay(models, newdata, tmat, 365*2, start_state=2)
     simfs <- totlos.simfs(models, tmat, t=365*2, start=2, newdata=newdata)
-    diff <- unname(as.matrix(los[1, 6:7] - simfs[2:3]))
-    expect_equal(all(diff > -1 & diff < 1), TRUE)
+    expect_equal(as.numeric(los[5]), 0)
+    expect_equal(as.numeric(simfs[1]), 0)
+
+    diff <- unname(as.matrix(los[1, 6:7] / simfs[2:3]))
+
+    # Again 5% tolerance
+    expect_equal(all(diff > 0.95 & diff < 1.05), TRUE)
 })
 
 test_that("length_of_stay guards work", {
