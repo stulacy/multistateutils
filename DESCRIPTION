@@ -14,15 +14,15 @@ Imports: data.table,
     dplyr, 
     magrittr, 
     networkD3, 
-    tidyr
+    tidyr,
+    webshot
 Suggests: covr,
     knitr,
     flexsurv, 
     mstate, 
     microbenchmark, 
     rmarkdown,
-    testthat,
-    webshot
+    testthat
 URL: https://github.com/stulacy/multistateutils
 BugReports: https://github.com/stulacy/multistateutils/issues
 LinkingTo: Rcpp
