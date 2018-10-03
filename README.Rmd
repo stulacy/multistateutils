@@ -44,7 +44,7 @@ Or the development version can also be installed directly from GitHub.
 
 ```{r gh-installation, eval = FALSE}
 install.packages("devtools")  # install devtools if it isn't already
-devtools::install_github("stulacy/multistateutils")
+devtools::install_github("stulacy/multistateutils", build_vignettes=TRUE)
 ```
 
 ## Examples

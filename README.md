@@ -28,7 +28,7 @@ Or the development version can also be installed directly from GitHub.
 
 ``` r
 install.packages("devtools")  # install devtools if it isn't already
-devtools::install_github("stulacy/multistateutils")
+devtools::install_github("stulacy/multistateutils", build_vignettes=TRUE)
 ```
 
 Examples
@@ -209,7 +209,7 @@ The underlying simulation engine can be easily adapted to run cohort-wide simula
 These discrete event simulations are run with the `cohort_simulation` function as below. They simply require a list of models as specified above, a cohort population, and the transition matrix. It outputs a long table where each row is an observed state entry for a given individual.
 
 ``` r
-sim <- cohort_simulation(models, ebmt3[, c('age', 'dissub')], tmat)
+sim <- cohort_simulation(models, ebmt3, tmat)
 head(sim)
 #>   id   age dissub   state time
 #> 1  0   >40    CML healthy    0
