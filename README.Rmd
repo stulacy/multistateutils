@@ -17,7 +17,7 @@ set.seed(17)  # reproducible examples / runtimes
 [![Travis-CI Build Status](https://travis-ci.org/stulacy/multistateutils.svg?branch=master)](https://travis-ci.org/stulacy/multistateutils)
 [![Coverage Status](https://img.shields.io/codecov/c/github/stulacy/multistateutils/master.svg)](https://codecov.io/github/stulacy/multistateutils?branch=master)
 [![DOI](https://zenodo.org/badge/126024410.svg)](https://zenodo.org/badge/latestdoi/126024410)
-
+[![JOSS Status](http://joss.theoj.org/papers/67db63fbfec0d7b9aacc672bb37e2173/status.svg)](http://joss.theoj.org/papers/67db63fbfec0d7b9aacc672bb37e2173)
 
 
 # multistateutils
