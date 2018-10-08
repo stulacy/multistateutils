@@ -8,3 +8,5 @@
 ^paper\.bib$
 ^paper\.md$
 ^LICENSE\.md$
+^CONTRIBUTING\.md$
+^CONDUCT\.md$
