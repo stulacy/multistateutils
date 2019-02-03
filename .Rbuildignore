@@ -5,3 +5,8 @@
 ^cran-comments\.md$
 ^\.travis\.yml$
 ^codecov\.yml$
+^paper\.bib$
+^paper\.md$
+^LICENSE\.md$
+^CONTRIBUTING\.md$
+^CONDUCT\.md$

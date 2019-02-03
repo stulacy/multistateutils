@@ -1,21 +1,30 @@
 Package: multistateutils
 Type: Package
 Title: Utility Functions for Parametric Multi-State Models
-Version: 1.2.0
-Date: 2018-07-18
+Version: 1.2.1
+Date: 2018-10-08
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
 Description: Provides functions for working with multi-state modelling, 
     such as efficient simulation routines for estimating transition probabilities and length of stay.
     It is designed as an extension to multi-state modelling capabilities provided with the 'flexsurv' 
     package (see Jackson (2016) <doi:10.18637/jss.v070.i08>).
-License: GPL (>= 2)
-Imports: data.table, dplyr, magrittr, networkD3, tidyr
-Suggests: flexsurv, mstate, microbenchmark, rmarkdown,
+License: GPL (>= 3)
+Imports: data.table, 
+    dplyr, 
+    magrittr, 
+    networkD3, 
+    tidyr,
+    webshot
+Suggests: covr,
     knitr,
-    testthat,
-    covr
+    flexsurv, 
+    mstate, 
+    microbenchmark, 
+    rmarkdown,
+    testthat
 URL: https://github.com/stulacy/multistateutils
+BugReports: https://github.com/stulacy/multistateutils/issues
 LinkingTo: Rcpp
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
 VignetteBuilder: knitr
