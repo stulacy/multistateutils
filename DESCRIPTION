@@ -2,7 +2,7 @@ Package: multistateutils
 Type: Package
 Title: Utility Functions for Parametric Multi-State Models
 Version: 1.2.1
-Date: 2018-10-08
+Date: 2019-02-03
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
 Description: Provides functions for working with multi-state modelling, 
@@ -26,5 +26,5 @@ Suggests: covr,
 URL: https://github.com/stulacy/multistateutils
 BugReports: https://github.com/stulacy/multistateutils/issues
 LinkingTo: Rcpp
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 VignetteBuilder: knitr
