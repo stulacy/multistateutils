@@ -46,11 +46,11 @@ calculate_transition_probabilities <- function(occupancy, start_times, end_times
     # Find state was in at start time
     # Obtain state that a person is in at starting times
     start_states <- occupancy[, .(start_state = state[findInterval(start_times, time)]),by=keys]
-    start_states[, start_time := start_times ]
+    start_states[, start_time := rep(start_times, nrow(start_states)/length(start_times)) ]
 
     # Obtain state that a person is in at all times want to calculate probabilities for
     end_states <- occupancy[, .(end_state = state[findInterval(end_times, time)]), by=keys]
-    end_states[, end_time := end_times ]
+    end_states[, end_time := rep(end_times, nrow(end_states)/length(end_times)) ]
 
     # Join the two tables together
     combined <- merge(start_states, end_states, on=keys, allow.cartesian=TRUE)
