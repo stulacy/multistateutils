@@ -1,3 +1,7 @@
+# multistateutils 1.2.2
+
+  - Fix for changes in data.table 1.12.1
+
 # multistateutils 1.2.1
 
   - Added more examples
