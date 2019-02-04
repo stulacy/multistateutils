@@ -1,7 +1,7 @@
 Package: multistateutils
 Type: Package
 Title: Utility Functions for Parametric Multi-State Models
-Version: 1.2.1
+Version: 1.2.2
 Date: 2019-02-03
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
@@ -14,8 +14,7 @@ Imports: data.table,
     dplyr, 
     magrittr, 
     networkD3, 
-    tidyr,
-    webshot
+    tidyr
 Suggests: covr,
     knitr,
     flexsurv, 
