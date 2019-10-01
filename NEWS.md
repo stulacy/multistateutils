@@ -1,3 +1,7 @@
+# multistateutils 1.2.3
+
+  - Added class `msdata` to the output from `msprep2` so that it is compatible with other `mstate` functions, such as `events`. 
+  
 # multistateutils 1.2.2
 
   - Fix for changes in data.table 1.12.1
