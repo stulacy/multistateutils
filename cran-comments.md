@@ -1,6 +1,7 @@
 ## Version update
 
 I have added one small new feature, see NEWS.md for details.
+I have also fixed the clang-USBSAN issue
 
 ## Test environments
 
