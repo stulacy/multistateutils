@@ -32,6 +32,10 @@ any covariate fields of interest.}
 \code{entry} and \code{censors}, \code{start_times}, \code{start_states},
 and \code{covars} if supplied.}
 }
+\value{
+An object of class \code{msdata}, representing the transition data
+  in long format.
+}
 \description{
 This function performs the same role as \code{msprep} from the \code{mstate} package, except
 that it accepts long data (each row corresponds to a state entry) rather
