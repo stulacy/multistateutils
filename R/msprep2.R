@@ -28,6 +28,8 @@
 #' @param idcol The column that indexes these patients, must be present in
 #'   \code{entry} and \code{censors}, \code{start_times}, \code{start_states},
 #'   and \code{covars} if supplied.
+#' @return An object of class \code{msdata}, representing the transition data
+#'   in long format.
 #' @examples
 #'  library(multistateutils)
 #'  library(mstate)
@@ -241,6 +243,9 @@ msprep2 <- function(entry, tmat, censors=NULL,
     to_int <- c('id', 'from', 'to', 'trans', 'status')
     entry4[to_int] <- lapply(entry4[to_int], as.integer)
 
-    entry4 %>%
+    out <- entry4 %>%
         dplyr::arrange(id, Tstart, trans)
+    attr(out, "trans") <- tmat
+    class(out) <- c('msdata', class(out))
+    out
 }

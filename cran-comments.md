@@ -1,15 +1,20 @@
 ## Version update
 
-I have added several new features, see NEWS.md for details.
+I have added one small new feature, see NEWS.md for details.
+I have also fixed the clang-USBSAN issue
 
 ## Test environments
 
-* local OpenSUSE Tumbleweed, R 3.5.1
+* local Manjaro Linux, R 3.6.1
 * win-builder (devel and release)
 
 ## R CMD check results
 
-0 errors | 0 warnings | 0 note
+The note is: "Compilation used the following non-portable flag(s):
+    ‘-march=x86-64’"
+But I believe this to be a local issue and won't affect the install on other machines.
+
+0 errors | 0 warnings | 1 note
 
 ## Reverse dependencies
 
