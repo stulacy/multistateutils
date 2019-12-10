@@ -9,7 +9,7 @@
 #     being a list itself, containing 2 items. The first item is the (zero-based) indices in
 #     attrs of the model coefficients, and the second contains the coefficients themselves.
 obtain_model_coef <- function(mod, attrs, M=1) {
-    if (class(mod) == 'oldage') {
+    if (inherits(mod, 'oldage')) {
         list(name='oldage',
              coefs=list(list(which(colnames(attrs) == mod$col)-1,
                         mod$scale),
@@ -17,7 +17,7 @@ obtain_model_coef <- function(mod, attrs, M=1) {
                         mod$limit
                         )))
 
-    } else if (class(mod) == 'flexsurvreg') {
+    } else if (inherits(mod, 'flexsurvreg')) {
         dist <- mod$dlist$name
         dist <- gsub("\\.[a-zA-Z]+", "", dist)
         attr_names <- colnames(attrs)
@@ -132,7 +132,7 @@ get_state_entries <- function(x) {
 }
 
 get_sink_states <- function(tmat) {
-    if (class(tmat) != 'matrix')
+    if (!inherits(tmat, 'matrix'))
         stop("Error: must provide a square transition matrix.")
     if (ncol(tmat) != nrow(tmat))
         stop("Error: must provide a square transition matrix.")
@@ -224,7 +224,7 @@ obtain_individual_starting_states <- function(trans_mat, ninds, nreps) {
 
 # Obtains covariates that are used by these models
 get_covariates <- function(models) {
-    if (!"list" %in% class(models))
+    if (!inherits(models, "list"))
         stop("Error: must provide a list of flexsurvreg objects.")
 
     if (!all(sapply(models, class) %in% c('flexsurvreg', 'oldage')))

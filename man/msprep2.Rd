@@ -4,8 +4,15 @@
 \alias{msprep2}
 \title{Converts long state entry data into a format suitable for multi-state modelling}
 \usage{
-msprep2(entry, tmat, censors = NULL, start_times = NULL,
-  start_states = NULL, covars = NULL, idcol = "id")
+msprep2(
+  entry,
+  tmat,
+  censors = NULL,
+  start_times = NULL,
+  start_states = NULL,
+  covars = NULL,
+  idcol = "id"
+)
 }
 \arguments{
 \item{entry}{Long data frame of format \code{id} | \code{state} | \code{time}.

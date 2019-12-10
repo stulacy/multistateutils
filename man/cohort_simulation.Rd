@@ -4,10 +4,21 @@
 \alias{cohort_simulation}
 \title{Runs a cohort discrete event simulation}
 \usage{
-cohort_simulation(models, newdata, trans_mat, start_time = 0,
-  start_state = 1, time_limit = NULL, tcovs = NULL, M = 1000,
-  ci = FALSE, ci_margin = 0.95, agelimit = FALSE, agecol = "age",
-  agescale = 365.25)
+cohort_simulation(
+  models,
+  newdata,
+  trans_mat,
+  start_time = 0,
+  start_state = 1,
+  time_limit = NULL,
+  tcovs = NULL,
+  M = 1000,
+  ci = FALSE,
+  ci_margin = 0.95,
+  agelimit = FALSE,
+  agecol = "age",
+  agescale = 365.25
+)
 }
 \arguments{
 \item{models}{List of \code{flexsurvreg} objects.}

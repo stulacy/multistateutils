@@ -4,8 +4,14 @@
 \alias{plot_predicted_pathway}
 \title{Displays the predicted flow for a given individual through the system}
 \usage{
-plot_predicted_pathway(models, trans_mat, newdata, times,
-  starting_state = 1, tcovs = NULL)
+plot_predicted_pathway(
+  models,
+  trans_mat,
+  newdata,
+  times,
+  starting_state = 1,
+  tcovs = NULL
+)
 }
 \arguments{
 \item{models}{List of \code{flexsurvreg} objects.}

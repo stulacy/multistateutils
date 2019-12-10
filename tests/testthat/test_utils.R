@@ -195,7 +195,7 @@ test_that("form_model_matrix returns a matrix", {
     
     newdata <- data.frame(age="20-40", dissub="AML")
     out <- form_model_matrix(newdata, models)
-    expect_equal(class(out), "matrix")
+    expect_true("matrix" %in% class(out))
     expect_equal(colnames(out), c('(Intercept)', 'age20-40', 'age>40', 'dissubALL', 'dissubCML'))
     expect_equal(all(out == c(1, 1, 0, 0, 0)), TRUE)
 })
