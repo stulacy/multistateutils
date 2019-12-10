@@ -1,7 +1,6 @@
 ## Version update
 
-I have added one small new feature, see NEWS.md for details.
-I have also fixed the clang-USBSAN issue
+I have fixed the bug arising from running conditional tests on the output of `class()` expecting a single value, which causes issues on r-devel.
 
 ## Test environments
 
