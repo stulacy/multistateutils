@@ -6,6 +6,7 @@ I have fixed the bug arising from running conditional tests on the output of `cl
 
 * local Manjaro Linux, R 3.6.1
 * win-builder (devel and release)
+* clang-UBSAN (rocker/r-devel-ubsan-clang)
 
 ## R CMD check results
 

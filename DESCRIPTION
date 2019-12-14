@@ -2,7 +2,7 @@ Package: multistateutils
 Type: Package
 Title: Utility Functions for Parametric Multi-State Models
 Version: 1.2.4
-Date: 2019-12-10
+Date: 2019-12-14
 Author: Stuart Lacy
 Maintainer: Stuart Lacy <stuart.lacy@gmail.com>
 Description: Provides functions for working with multi-state modelling, 
