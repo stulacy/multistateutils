@@ -1,3 +1,7 @@
+# multistateutils 1.2.4
+
+Bug fixes. Tests for object class now use `inherits` and clock is now `double` to allow for greater range of values.
+
 # multistateutils 1.2.3
 
   - Added class `msdata` to the output from `msprep2` so that it is compatible with other `mstate` functions, such as `events`. 

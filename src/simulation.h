@@ -22,7 +22,7 @@ class Simulation {
         double get_sim_entry_time(int);
         double get_previous_state_entry_time(int);
         void run();
-        unsigned long clock;
+        double clock;
         State* get_state(int);
         double get_next_event_time();
         Rcpp::NumericVector get_patient_attrs(int);
