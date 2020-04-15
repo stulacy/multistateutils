@@ -4,10 +4,21 @@
 \alias{predict_transitions}
 \title{Estimates transition probabilities}
 \usage{
-predict_transitions(models, newdata, trans_mat, times, start_times = 0,
-  tcovs = NULL, N = 1e+05, M = 1000, ci = FALSE,
-  ci_margin = 0.95, agelimit = FALSE, agecol = "age",
-  agescale = 365.25)
+predict_transitions(
+  models,
+  newdata,
+  trans_mat,
+  times,
+  start_times = 0,
+  tcovs = NULL,
+  N = 1e+05,
+  M = 1000,
+  ci = FALSE,
+  ci_margin = 0.95,
+  agelimit = FALSE,
+  agecol = "age",
+  agescale = 365.25
+)
 }
 \arguments{
 \item{models}{List of \code{flexsurvreg} objects.}

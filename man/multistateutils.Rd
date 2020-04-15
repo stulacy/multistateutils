@@ -3,7 +3,6 @@
 \docType{package}
 \name{multistateutils}
 \alias{multistateutils}
-\alias{multistateutils-package}
 \title{\code{multistateutils} package.}
 \description{
 Provides utility functions for already fitted parametric multi-state models,

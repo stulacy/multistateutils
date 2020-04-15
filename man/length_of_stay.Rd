@@ -4,10 +4,21 @@
 \alias{length_of_stay}
 \title{Estimates length of stay}
 \usage{
-length_of_stay(models, newdata, trans_mat, times, start_state = 1,
-  tcovs = NULL, N = 1e+05, M = 1000, ci = FALSE,
-  ci_margin = 0.95, agelimit = FALSE, agecol = "age",
-  agescale = 365.25)
+length_of_stay(
+  models,
+  newdata,
+  trans_mat,
+  times,
+  start_state = 1,
+  tcovs = NULL,
+  N = 1e+05,
+  M = 1000,
+  ci = FALSE,
+  ci_margin = 0.95,
+  agelimit = FALSE,
+  agecol = "age",
+  agescale = 365.25
+)
 }
 \arguments{
 \item{models}{List of \code{flexsurvreg} objects.}
