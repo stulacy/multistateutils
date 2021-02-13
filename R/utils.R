@@ -10,12 +10,17 @@
 #     attrs of the model coefficients, and the second contains the coefficients themselves.
 obtain_model_coef <- function(mod, attrs, M=1) {
     if (inherits(mod, 'oldage')) {
-        list(name='oldage',
-             coefs=list(list(which(colnames(attrs) == mod$col)-1,
-                        mod$scale),
-                   list(0,
-                        mod$limit
-                        )))
+        coefs_as_list <- list(name='oldage',
+                              coefs=list(list(which(colnames(attrs) == mod$col)-1,
+                                              mod$scale),
+                                    list(0,
+                                         mod$limit
+                                        )))
+        if (M == 1) {
+            coefs_as_list
+        } else {
+            lapply(1:M, function(i) coefs_as_list)
+        }
 
     } else if (inherits(mod, 'flexsurvreg')) {
         dist <- mod$dlist$name
